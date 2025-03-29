@@ -169,19 +169,25 @@ function calculateDifficulty(startWord, targetWord, wordList) {
   // Calculate difficulty score (1-5)
   let difficultyScore = 0;
   
-  // Letter difference contributes to difficulty (more different = harder)
-  difficultyScore += Math.min(letterDifference / 2, 2); // 0-2 points
+  // Letter difference contributes to difficulty with more granular scoring
+  // 1 letter different = 0.2 points
+  // 2 letters different = 0.4 points
+  // 3 letters different = 0.6 points
+  // 4 letters different = 0.8 points
+  // 5 letters different = 1.0 points
+  // 6 letters different = 1.2 points
+  difficultyScore += Math.min(letterDifference * 0.2, 1.2);
   
-  // Path length contributes to difficulty (longer = harder)
-  difficultyScore += Math.min(shortestPath / 2, 2); // 0-2 points
+  // Path length contributes more to difficulty (longer = harder)
+  difficultyScore += Math.min(shortestPath / 1.5, 2.5); // 0-2.5 points
   
-  // Path diversity inversely contributes (fewer paths = harder)
+  // Path diversity inversely contributes more (fewer paths = harder)
   if (possiblePaths === 0) {
-    difficultyScore += 1; // Maximum difficulty for no paths
+    difficultyScore += 1.5; // Maximum difficulty for no paths
   } else if (possiblePaths < 3) {
-    difficultyScore += 0.8; // Very few paths
+    difficultyScore += 1.2; // Very few paths
   } else if (possiblePaths < 8) {
-    difficultyScore += 0.4; // Some paths
+    difficultyScore += 0.6; // Some paths
   }
   
   // Round to nearest 0.5 and ensure in range 1-5
