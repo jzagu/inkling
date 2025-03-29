@@ -163,6 +163,17 @@ function calculateDifficulty(startWord, targetWord, wordList) {
   // If no path exists, return maximum difficulty
   if (shortestPath === -1) return 5;
   
+  // If the shortest path requires 3 or more moves, automatically assign maximum difficulty
+  if (shortestPath >= 3) {
+    return {
+      score: 5,
+      letterDifference,
+      shortestPath,
+      possiblePaths: countPossiblePaths(startWord, targetWord, wordList),
+      difficultyText: "Master"
+    };
+  }
+  
   // Calculate path diversity (limited to avoid expensive computation)
   const possiblePaths = countPossiblePaths(startWord, targetWord, wordList);
   
@@ -178,8 +189,9 @@ function calculateDifficulty(startWord, targetWord, wordList) {
   // 6 letters different = 1.2 points
   difficultyScore += Math.min(letterDifference * 0.2, 1.2);
   
-  // Path length contributes more to difficulty (longer = harder)
-  difficultyScore += Math.min(shortestPath / 1.5, 2.5); // 0-2.5 points
+  // Path length contributes much more to difficulty (longer = harder)
+  // Worth double what it was before
+  difficultyScore += Math.min(shortestPath * 2, 3.0); // 0-3.0 points
   
   // Path diversity inversely contributes more (fewer paths = harder)
   if (possiblePaths === 0) {
