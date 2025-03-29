@@ -304,9 +304,16 @@ function draw() {
 }
 
 function displayGameScreen() {
-  // Draw a card-like container
+  // Calculate the height needed for the word chain box
+  const wordChainHeight = Math.max(300, wordChain.length * 30 + 60); // Base height of 300, or more if needed
+  const boxTop = 100;
+  
+  // Calculate how much to shift elements down based on number of guesses
+  const shiftAmount = Math.max(0, (wordChain.length - 3) * 30); // Start shifting after 3 guesses
+  
+  // Draw a card-like container with dynamic height
   fill(colors.accent);
-  rect(50, 100, width-100, 300, 15);
+  rect(50, boxTop, width-100, wordChainHeight, 15);
   
   // Display start and target words
   textSize(24);
@@ -315,31 +322,28 @@ function displayGameScreen() {
   
   // Start word with styling
   fill(colors.secondary);
-  rect(width/2 - 150, 120, 140, 50, 10);
+  rect(width/2 - 150, boxTop + 20, 140, 50, 10);
   fill(colors.text);
-  text(startWord.toUpperCase(), width/2 - 80, 155);
-  text("START", width/2 - 80, 110);
+  text(startWord.toUpperCase(), width/2 - 80, boxTop + 55);
+  text("START", width/2 - 80, boxTop + 10);
   
   // Target word with styling
   fill(colors.primary);
-  rect(width/2 + 10, 120, 140, 50, 10);
+  rect(width/2 + 10, boxTop + 20, 140, 50, 10);
   fill(colors.text);
-  text(targetWord.toUpperCase(), width/2 + 80, 155);
-  text("TARGET", width/2 + 80, 110);
+  text(targetWord.toUpperCase(), width/2 + 80, boxTop + 55);
+  text("TARGET", width/2 + 80, boxTop + 10);
   
   // Draw arrow pointing from start to target word (triangle only, no line)
   fill(colors.text);
-  // Remove the line between boxes
-  // line(width/2 - 30, 145, width/2 + 30, 145);
-  
   // Arrow head pointing right (towards target)
-  triangle(width/2, 145, width/2 - 15, 135, width/2 - 15, 155);
+  triangle(width/2, boxTop + 45, width/2 - 15, boxTop + 35, width/2 - 15, boxTop + 55);
   
   // Display current word chain
   textSize(18);
   fill(colors.text);
   textAlign(LEFT);
-  text("Your word chain:", 100, 210);
+  text("Your word chain:", 100, boxTop + 110);
   
   // Draw word chain with nice styling
   for (let i = 0; i < wordChain.length; i++) {
@@ -349,14 +353,61 @@ function displayGameScreen() {
     } else {
       fill(colors.text);
     }
-    text(wordChain[i].toUpperCase(), 110, 240 + i * 30);
+    text(wordChain[i].toUpperCase(), 110, boxTop + 140 + i * 30);
+  }
+  
+  // Calculate the bottom position of the game box
+  const gameBoxBottom = boxTop + wordChainHeight;
+  
+  // Position input elements relative to the game box bottom, with additional shift
+  const inputY = gameBoxBottom + 30 + shiftAmount;
+  
+  // Update input elements position
+  const canvas = document.querySelector('canvas');
+  if (canvas) {
+    const canvasRect = canvas.getBoundingClientRect();
+    const canvasLeft = canvasRect.left;
+    
+    // Center the input box (200px width)
+    const inputBoxX = canvasLeft + width/2 - 100;
+    inputBox.position(inputBoxX, inputY);
+    
+    // Position submit button to the right of the input box
+    const submitButtonX = inputBoxX + 210;
+    submitButton.position(submitButtonX, inputY);
   }
   
   // Display feedback message
   fill(colors.highlight);
   textSize(16);
   textAlign(CENTER);
-  text(message, width/2, height - 160);  // Moved up from -180 to -160
+  text(message, width/2, inputY - 10);
+  
+  // Show "Daily Challenge" label with date
+  fill(colors.primary);
+  textSize(14);
+  textAlign(RIGHT);
+  text(`DAILY CHALLENGE · ${getTodayInPacificTime().toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric'
+  })}`, width - 60, height - 6);
+  
+  // Show difficulty level if available
+  if (challengeDifficulty) {
+    fill(colors.highlight);
+    textSize(14);
+    textAlign(LEFT);
+    text(`DIFFICULTY: ${challengeDifficulty.difficultyText.toUpperCase()}`, 60, height - 6);
+  }
+  
+  // Show dictionary loading status if dictionary is still loading
+  if (typeof dictionaryState !== 'undefined' && dictionaryState.isLoading) {
+    fill(colors.highlight);
+    textSize(14);
+    textAlign(LEFT);
+    text(`Dictionary: ${dictionary.length} words loaded (${dictionaryState.loadedSections}/${dictionaryState.totalSections} files)`, 
+         60, height - 20);
+  }
 }
 
 // Helper function to calculate victory card dimensions
