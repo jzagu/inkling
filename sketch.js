@@ -23,6 +23,10 @@ let colors = {
 // Dictionary is loaded from the word-list files defined in index.html
 let dictionary = [];
 
+// Help popup state
+let showHelpPopup = false;
+let helpButton;
+
 function setup() {
   createCanvas(500, 600);
   
@@ -63,6 +67,25 @@ function setup() {
   submitButton.style('border-radius', '25px');
   submitButton.style('cursor', 'pointer');
   submitButton.mousePressed(checkWord);
+  
+  // Create help button with styling
+  helpButton = createButton("?");
+  helpButton.size(40, 40);
+  helpButton.style('background-color', colors.highlight);
+  helpButton.style('color', colors.accent);
+  helpButton.style('font-size', '24px');
+  helpButton.style('font-weight', 'bold');
+  helpButton.style('border', 'none');
+  helpButton.style('border-radius', '50%');
+  helpButton.style('cursor', 'pointer');
+  helpButton.style('z-index', '1000'); // Ensure button stays on top
+  helpButton.mousePressed(toggleHelpPopup);
+
+  // Also add direct DOM event listener to ensure clicks are captured
+  helpButton.elt.addEventListener('click', function(e) {
+    toggleHelpPopup();
+    e.stopPropagation(); // Prevent event from bubbling up
+  });
 
   // Position elements relative to canvas
   const canvas = document.querySelector('canvas');
@@ -77,7 +100,16 @@ function setup() {
     // Position submit button to the right of the input box
     const submitButtonX = inputBoxX + 210;  // Input box x + input box width (200) + spacing (10)
     submitButton.position(submitButtonX, height - 130);
+    
+    // Position help button at the top right corner
+    helpButton.position(canvasLeft + width - 50, 10);
   }
+}
+
+// Function to toggle help popup visibility
+function toggleHelpPopup() {
+  showHelpPopup = !showHelpPopup;
+  console.log("Help popup toggled. Current state:", showHelpPopup);
 }
 
 // Add window resize handler
@@ -100,6 +132,9 @@ function windowResized() {
     // Position submit button to the right of the input box
     const submitButtonX = inputBoxX + 210;  // Input box x + input box width (200) + spacing (10)
     submitButton.position(submitButtonX, height - 130);
+    
+    // Position help button at the top right corner
+    helpButton.position(canvasLeft + width - 50, 10);
   }
 }
 
@@ -300,6 +335,11 @@ function draw() {
     textAlign(LEFT);
     text(`Dictionary: ${dictionary.length} words loaded (${dictionaryState.loadedSections}/${dictionaryState.totalSections} files)`, 
          60, height - 20);
+  }
+  
+  // Draw help popup if visible - moved to the end to ensure it's drawn on top
+  if (showHelpPopup) {
+    displayHelpPopup();
   }
 }
 
@@ -643,6 +683,11 @@ function keyPressed() {
     message = "";
     gameWon = false;
   }
+  
+  // Add keyboard shortcut for help popup (h key)
+  if (key === 'h' || key === 'H') {
+    toggleHelpPopup();
+  }
 }
 
 function checkWord() {
@@ -893,6 +938,40 @@ function shareResults() {
 }
 
 function mousePressed() {
+  // Handle clicks when help popup is showing
+  if (showHelpPopup) {
+    // Make sure we're not clicking the help button itself
+    const canvas = document.querySelector('canvas');
+    if (canvas) {
+      const canvasRect = canvas.getBoundingClientRect();
+      const canvasLeft = canvasRect.left;
+      const helpButtonX = canvasLeft + width - 50;
+      const helpButtonY = 10;
+      const helpButtonWidth = 40;
+      const helpButtonHeight = 40;
+      
+      // Check if clicking help button
+      const isClickOnHelpButton = 
+        mouseX >= helpButtonX && mouseX <= helpButtonX + helpButtonWidth &&
+        mouseY >= helpButtonY && mouseY <= helpButtonY + helpButtonHeight;
+      
+      // Close popup if clicking outside help button
+      if (!isClickOnHelpButton) {
+        showHelpPopup = false;
+        
+        // Show input elements again if not in victory screen
+        if (!gameWon) {
+          inputBox.style('display', 'block');
+          submitButton.style('display', 'block');
+        }
+        
+        return false; // Prevent default behavior
+      }
+    }
+    
+    return false; // Prevent any clicks while popup is open
+  }
+  
   // Check if user is on victory screen and clicks the share button (top right)
   if (gameWon && 
       mouseX > width - 180 && mouseX < width - 60 && 
@@ -914,4 +993,97 @@ function mousePressed() {
   }
   
   return true;
+}
+
+// Function to display the help popup
+function displayHelpPopup() {
+  // Hide input elements when help popup is visible
+  if (inputBox) inputBox.style('display', 'none');
+  if (submitButton) submitButton.style('display', 'none');
+  
+  // Create full-screen semi-transparent overlay
+  fill(0, 0, 0, 220);
+  rect(0, 0, width, height);
+  
+  // Calculate popup dimensions
+  const popupWidth = width - 80; // Increased side margins
+  const popupHeight = height - 80;
+  const popupX = 40; // Increased left margin
+  const popupY = 40;
+  
+  // Draw popup box with better dimensions
+  fill(colors.accent);
+  rect(popupX, popupY, popupWidth, popupHeight, 15);
+  
+  // Popup title
+  fill(colors.primary);
+  textSize(26); // Slightly smaller title
+  textAlign(CENTER);
+  text("How to Play Inkling", width/2, popupY + 40);
+  
+  // Calculate text positioning
+  const textLeftMargin = popupX + 30; // Increased text left margin
+  const textWidth = popupWidth - 60; // Reduced text width
+  let currentY = popupY + 80;
+  const lineHeight = 24; // Slightly reduced line height
+  
+  // Game description
+  fill(colors.text);
+  textSize(15); // Smaller text size
+  textAlign(LEFT);
+  text("Inkling is a word chain puzzle where you transform a", textLeftMargin, currentY);
+  currentY += lineHeight;
+  text("starting word into a target word through a series of steps.", textLeftMargin, currentY);
+  currentY += lineHeight * 1.5;
+  
+  // Rules section
+  fill(colors.highlight);
+  textSize(18); // Smaller section headers
+  text("Rules:", textLeftMargin, currentY);
+  currentY += lineHeight * 1.2;
+  
+  // Rules content
+  fill(colors.text);
+  textSize(15); // Smaller text size
+  text("1. Each move, you can change only 1 or 2 letters in the", textLeftMargin, currentY);
+  currentY += lineHeight;
+  text("   current word", textLeftMargin, currentY);
+  currentY += lineHeight;
+  text("2. Each new word must be a valid word in the dictionary", textLeftMargin, currentY);
+  currentY += lineHeight;
+  text("3. You win when you either:", textLeftMargin, currentY);
+  currentY += lineHeight;
+  text("   - Reach the exact target word, or", textLeftMargin, currentY);
+  currentY += lineHeight;
+  text("   - Create a word that's only 1-2 letters away from", textLeftMargin, currentY);
+  currentY += lineHeight;
+  text("     the target", textLeftMargin, currentY);
+  currentY += lineHeight * 1.5;
+  
+  // Example section
+  fill(colors.highlight);
+  textSize(18); // Smaller section headers
+  text("Example:", textLeftMargin, currentY);
+  currentY += lineHeight * 1.2;
+  
+  // Example chain
+  fill(colors.text);
+  textSize(15); // Smaller text size
+  text("FOREST → PUREST → PURIST → PARISH", textLeftMargin, currentY);
+  currentY += lineHeight * 1.5;
+  
+  // Explanation of example
+  text("In this example:", textLeftMargin, currentY);
+  currentY += lineHeight;
+  text("- FOREST to PUREST: Changed F→P and O→U (2 letters)", textLeftMargin + 10, currentY);
+  currentY += lineHeight;
+  text("- PUREST to PURIST: Changed E→I (1 letter)", textLeftMargin + 10, currentY);
+  currentY += lineHeight;
+  text("- PURIST to PARISH: Changed U→A and T→H (2 letters)", textLeftMargin + 10, currentY);
+  
+  // Close instruction at bottom of popup
+  fill(colors.primary);
+  textSize(14);
+  textAlign(CENTER);
+  text("Click anywhere to close", width/2, popupY + popupHeight - 20);
 }
