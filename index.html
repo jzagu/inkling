@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Inkling - Word Chain Game</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      background-color: #1a1a2e;
+    }
+    
+    #loading {
+      position: absolute;
+      bottom: 10px;
+      left: 10px;
+      color: #e94560;
+      font-family: Arial, sans-serif;
+      font-size: 14px;
+      padding: 5px 10px;
+      background-color: rgba(26, 26, 46, 0.7);
+      border-radius: 5px;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div id="loading">Loading word dictionary...</div>
+  
+  <!-- Core words that are immediately available -->
+  <script>
+    // Initialize the dictionary with core words to ensure gameplay works immediately
+    const allSixLetterWords = [
+      // Core solution path
+      "forest", "foster", "faster", "master", "mister", "winter",
+      
+      // Additional common six-letter words including "rarest"
+      "rarest", "parent", "almost", "always", "answer", "anyone", "anyway", "appear", 
+      "around", "arrive", "artist", "become", "before", "behind", "better", "beyond", 
+      "border", "bottom", "branch", "breath", "bridge", "bright", "broken", "budget", 
+      "burden", "button", "camera", "cancer", "cannot", "carbon", "career", "castle", 
+      "casual", "caught", "center", "chance", "change", "charge", "choice", "choose", 
+      "church", "circle", "client", "closed", "coffee", "column", "coming", "common", 
+      "couple", "course", "create", "damage", "danger", "decade", "decide", "defeat", 
+      "defend", "define", "degree", "demand", "design", "desire", "detail", "dinner", 
+      "direct", "doctor", "dollar", "double", "driven", "during", "easily", "eating", 
+      "editor", "effect", "effort", "enable", "ending", "energy", "engine", "enough", 
+      "ensure", "entire", "escape", "estate", "expect", "expert", "extend", "factor", 
+      "family", "famous", "father", "female", "figure", "finger", "finish", "flight", 
+      "follow", "forget", "formal", "former", "fourth", "friend", "future", "garden", 
+      "global", "golden", "ground", "growth", "handle", "happen", "health", "height", 
+      "hidden", "honest", "impact", "income", "indeed", "injury", "inside", "invest", 
+      "island", "itself", "junior", "killed", "latest", "latter", "launch", "lawyer", 
+      "leader", "league", "legacy", "length", "lesson", "letter", "lights", "likely", 
+      "liquid", "listen", "little", "living", "losing", "luxury", "making", "manage", 
+      "manner", "market", "matter", "mature", "medium", "member", "memory", "mental", 
+      "method", "middle", "minute", "mirror", "mobile", "modern", "moment", "mother", 
+      "motion", "murder", "nation", "native", "nature", "nearby", "nearly", "needed",
+      "normal", "notice", "number", "object", "obtain", "office", "online", "option", 
+      "origin", "output", "palace", "parent", "partly", "people", "period", "permit", 
+      "person", "phrase", "picked", "planet", "player", "please", "plenty", "pocket", 
+      "police", "policy", "prefer", "pretty", "prison", "public", "pursue", "random", 
+      "rarely", "rather", "reader", "really", "reason", "recent", "record", "reduce", 
+      "reform", "regard", "region", "remain", "remote", "remove", "repair", "repeat", 
+      "report", "result", "retain", "return", "reveal", "review", "reward", "rising", 
+      "safety", "salary", "sample", "saving", "school", "screen", "search", "season", 
+      "second", "secret", "secure", "seeing", "select", "senior", "series", "server", 
+      "settle", "severe", "sexual", "should", "signal", "signed", "silent", "silver", 
+      "simple", "singer", "single", "sister", "social", "source", "speech", "spirit", 
+      "spread", "spring", "square", "stable", "status", "steady", "street", "stress", 
+      "string", "strong", "studio", "submit", "sudden", "suffer", "summer", "supply", 
+      "survey", "switch", "system", "taking", "talent", "target", "taught", "tennis", 
+      "thanks", "theory", "though", "threat", "ticket", "toward", "travel", "twenty", 
+      "unique", "united", "unless", "update", "useful", "valley", "vision", "visual", 
+      "volume", "wealth", "weight", "window", "winner", "within", "wonder", "worker"
+    ];
+    
+    // Track dictionary loading progress
+    let dictionaryState = {
+      isLoading: true,
+      loadedSections: 0,
+      totalSections: 5
+    };
+    
+    // Function to update the loading indicator
+    function updateLoadingStatus() {
+      const loadingElement = document.getElementById('loading');
+      
+      if (dictionaryState.isLoading) {
+        loadingElement.style.display = 'block';
+        loadingElement.textContent = `Loading dictionary: ${dictionaryState.loadedSections}/${dictionaryState.totalSections}`;
+      } else {
+        loadingElement.textContent = `Dictionary loaded: ${allSixLetterWords.length} words`;
+        // Hide loading indicator after 3 seconds
+        setTimeout(() => {
+          loadingElement.style.display = 'none';
+        }, 3000);
+      }
+    }
+    
+    // Load word lists in the background
+    function addWordsToDict(newWords) {
+      // Add new words to dictionary, avoiding duplicates
+      const uniqueWords = newWords.filter(word => !allSixLetterWords.includes(word));
+      allSixLetterWords.push(...uniqueWords);
+      
+      // Update loading status
+      dictionaryState.loadedSections++;
+      if (dictionaryState.loadedSections >= dictionaryState.totalSections) {
+        dictionaryState.isLoading = false;
+      }
+      updateLoadingStatus();
+    }
+    
+    // Call initially to show "Loading" message
+    updateLoadingStatus();
+  </script>
+  
+  <!-- Load word lists in the background -->
+  <script src="word-list-a-e.js" defer></script>
+  <script src="word-list-f-j.js" defer></script>
+  <script src="word-list-k-o.js" defer></script>
+  <script src="word-list-p-t.js" defer></script>
+  <script src="word-list-u-z.js" defer></script>
+  
+  <!-- Preload simple word list -->
+  <script src="load-simple-wordlist.js"></script>
+  
+  <!-- Load daily challenge module -->
+  <script src="daily-challenge.js"></script>
+  
+  <!-- Then load the main sketch file -->
+  <script src="sketch.js"></script>
+</body>
+</html>
