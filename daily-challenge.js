@@ -94,6 +94,11 @@ function canFindPath(startWord, targetWord, wordList) {
 // Find the shortest path between start and target words
 // Returns the path length or -1 if no path exists
 function findShortestPath(startWord, targetWord, wordList) {
+  // Check for direct connection first (this is the key fix)
+  if (areWordsConnectable(startWord, targetWord)) {
+    return 1; // If words differ by 1-2 letters, it's just 1 move
+  }
+  
   if (startWord === targetWord) return 0;
   if (!wordList.includes(startWord) || !wordList.includes(targetWord)) return -1;
   
@@ -160,11 +165,32 @@ function calculateDifficulty(startWord, targetWord, wordList) {
   const letterDifference = countDifferences(startWord, targetWord);
   const shortestPath = findShortestPath(startWord, targetWord, wordList);
   
+  // Log the metrics for debugging
+  console.log(`Difficulty calculation for ${startWord} → ${targetWord}:`);
+  console.log(`Letter difference: ${letterDifference}`);
+  console.log(`Shortest path: ${shortestPath}`);
+  
   // If no path exists, return maximum difficulty
   if (shortestPath === -1) return 5;
   
-  // If the shortest path requires 3 or more moves, automatically assign maximum difficulty
-  if (shortestPath >= 3) {
+  // Adjust difficulty thresholds - make it more reasonable
+  // If direct move is possible (difference of 1-2 letters), should be Easy-Medium
+  if (shortestPath === 1) {
+    // Direct move is possible - base difficulty on letter difference
+    const directDifficultyScore = letterDifference === 1 ? 1 : 1.5; // 1 letter = Easy, 2 letters = Medium
+    
+    return {
+      score: directDifficultyScore,
+      letterDifference,
+      shortestPath,
+      possiblePaths: countPossiblePaths(startWord, targetWord, wordList),
+      difficultyText: getDifficultyText(directDifficultyScore)
+    };
+  }
+  
+  // If the shortest path requires more moves, scale difficulty
+  if (shortestPath >= 4) {
+    // Very long paths are Master difficulty
     return {
       score: 5,
       letterDifference,
@@ -172,10 +198,29 @@ function calculateDifficulty(startWord, targetWord, wordList) {
       possiblePaths: countPossiblePaths(startWord, targetWord, wordList),
       difficultyText: "Master"
     };
+  } else if (shortestPath >= 3) {
+    // 3 moves is Expert difficulty
+    return {
+      score: 4,
+      letterDifference,
+      shortestPath,
+      possiblePaths: countPossiblePaths(startWord, targetWord, wordList),
+      difficultyText: "Expert"
+    };
+  } else if (shortestPath === 2) {
+    // 2 moves is Hard difficulty
+    return {
+      score: 3,
+      letterDifference,
+      shortestPath,
+      possiblePaths: countPossiblePaths(startWord, targetWord, wordList),
+      difficultyText: "Hard"
+    };
   }
   
   // Calculate path diversity (limited to avoid expensive computation)
   const possiblePaths = countPossiblePaths(startWord, targetWord, wordList);
+  console.log(`Possible paths: ${possiblePaths}`);
   
   // Calculate difficulty score (1-5)
   let difficultyScore = 0;
@@ -190,8 +235,7 @@ function calculateDifficulty(startWord, targetWord, wordList) {
   difficultyScore += Math.min(letterDifference * 0.2, 1.2);
   
   // Path length contributes much more to difficulty (longer = harder)
-  // Worth double what it was before
-  difficultyScore += Math.min(shortestPath * 2, 3.0); // 0-3.0 points
+  difficultyScore += Math.min(shortestPath * 1.0, 3.0); // 0-3.0 points (reduced weight)
   
   // Path diversity inversely contributes more (fewer paths = harder)
   if (possiblePaths === 0) {
@@ -226,23 +270,51 @@ function getDifficultyText(score) {
 
 // Generate a seed for consistent random number generation based on the date
 function getDateSeed() {
-  // Get current date in Pacific timezone
+  // Get current date 
   const now = new Date();
-  // Pacific time is UTC-7 or UTC-8 depending on daylight saving
-  // Automatically determine if daylight saving is in effect
-  const jan = new Date(now.getFullYear(), 0, 1);
-  const jul = new Date(now.getFullYear(), 6, 1);
-  const stdTimezoneOffset = Math.max(jan.getTimezoneOffset(), jul.getTimezoneOffset());
-  const isDST = now.getTimezoneOffset() < stdTimezoneOffset;
   
-  // Adjust for daylight saving time if needed
-  const pacificOffset = isDST ? -7 * 60 : -8 * 60; // -7 or -8 hours in minutes
+  // Output the current date for debugging
+  console.log("Current date (local): ", now.toString());
   
-  // Convert to Pacific time
-  const pacificTime = new Date(now.getTime() + (now.getTimezoneOffset() + pacificOffset) * 60000);
-  
-  // Use year/month/day as seed
-  return `${pacificTime.getFullYear()}_${pacificTime.getMonth() + 1}_${pacificTime.getDate()}`;
+  // Try to get Pacific time more reliably
+  let pacificTime;
+  try {
+    // First attempt: Using Intl.DateTimeFormat for proper time zone support
+    pacificTime = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/Los_Angeles',
+      year: 'numeric',
+      month: 'numeric',
+      day: 'numeric'
+    }).format(now);
+    
+    // Convert to date components
+    const [month, day, year] = pacificTime.split('/').map(num => parseInt(num, 10));
+    
+    // Use consistent format for seed
+    const seedString = `${year}_${month}_${day}`;
+    console.log("Generated seed (Pacific Time): ", seedString);
+    return seedString;
+  } catch (e) {
+    console.warn("Error using Intl.DateTimeFormat, falling back to manual calculation", e);
+    
+    // Fallback to manual calculation (original code)
+    // Automatically determine if daylight saving is in effect
+    const jan = new Date(now.getFullYear(), 0, 1);
+    const jul = new Date(now.getFullYear(), 6, 1);
+    const stdTimezoneOffset = Math.max(jan.getTimezoneOffset(), jul.getTimezoneOffset());
+    const isDST = now.getTimezoneOffset() < stdTimezoneOffset;
+    
+    // Adjust for daylight saving time if needed
+    const pacificOffset = isDST ? -7 * 60 : -8 * 60; // -7 or -8 hours in minutes
+    
+    // Convert to Pacific time
+    pacificTime = new Date(now.getTime() + (now.getTimezoneOffset() + pacificOffset) * 60000);
+    
+    // Use year/month/day as seed
+    const seedString = `${pacificTime.getFullYear()}_${pacificTime.getMonth() + 1}_${pacificTime.getDate()}`;
+    console.log("Generated seed (fallback method): ", seedString);
+    return seedString;
+  }
 }
 
 // Simple pseudo-random number generator with a seed
