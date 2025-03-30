@@ -217,15 +217,64 @@ function checkForNewDay() {
   // Get current date in Pacific timezone
   const pacificTime = getTodayInPacificTime();
   
+  // Debug logging - show current Pacific time
+  console.log("Current Pacific Time:", pacificTime.toString());
+  
   // Get stored date from localStorage or default to a past date
   const storedDateStr = localStorage.getItem('lastChallengeDate') || '2000-01-01';
   const storedDate = new Date(storedDateStr);
+  
+  // Debug logging - show stored date
+  console.log("Last challenge date from localStorage:", storedDate.toString());
+  console.log("Current date string:", pacificTime.toDateString());
+  console.log("Stored date string:", storedDate.toDateString());
   
   // Check if the day has changed
   if (pacificTime.toDateString() !== storedDate.toDateString()) {
     // Store new date
     localStorage.setItem('lastChallengeDate', pacificTime.toISOString());
+    console.log("New day detected! Updated lastChallengeDate in localStorage");
+    
+    // Force refresh the challenge - add this to guarantee the challenge is updated
+    if (typeof getDailyChallenge === 'function') {
+      console.log("Forcing challenge refresh...");
+      setTimeout(() => {
+        getDailyChallenge().then(challenge => {
+          console.log("New challenge generated:", challenge.startWord, "→", challenge.targetWord);
+          startWord = challenge.startWord;
+          targetWord = challenge.targetWord;
+          challengeDifficulty = challenge.difficulty;
+          
+          // Reset game state with new challenge
+          currentWord = startWord;
+          wordChain = [startWord];
+          message = "New daily challenge loaded!";
+          gameWon = false;
+        }).catch(error => {
+          console.error("Error refreshing challenge:", error);
+        });
+      }, 500); // Short delay to ensure everything is ready
+    }
+    
     return true;
+  }
+  
+  // More debugging for persistent issues
+  if (storedDate.toDateString() === pacificTime.toDateString() && 
+      typeof getDailyChallenge === 'function' && 
+      storedDate.getTime() < (now - 86400000)) { // If stored date is more than a day old
+    console.warn("Date hasn't changed according to comparison, but stored date is old!");
+    console.warn("This might indicate a problem with date string comparison or localStorage");
+    
+    // Try alternate check based on time difference
+    const dayDiff = Math.floor((now - storedDate.getTime()) / (1000 * 60 * 60 * 24));
+    console.log("Days since last challenge:", dayDiff);
+    
+    if (dayDiff >= 1) {
+      console.log("Forcing refresh based on day difference");
+      localStorage.setItem('lastChallengeDate', pacificTime.toISOString());
+      return true;
+    }
   }
   
   return false;
@@ -235,17 +284,53 @@ function checkForNewDay() {
 function getTodayInPacificTime() {
   const now = new Date();
   
-  // Automatically determine if daylight saving is in effect
-  const jan = new Date(now.getFullYear(), 0, 1);
-  const jul = new Date(now.getFullYear(), 6, 1);
-  const stdTimezoneOffset = Math.max(jan.getTimezoneOffset(), jul.getTimezoneOffset());
-  const isDST = now.getTimezoneOffset() < stdTimezoneOffset;
-  
-  // Adjust for daylight saving time if needed
-  const pacificOffset = isDST ? -7 * 60 : -8 * 60; // -7 or -8 hours in minutes
-  
-  // Convert to Pacific time
-  return new Date(now.getTime() + (now.getTimezoneOffset() + pacificOffset) * 60000);
+  // First try using the Intl API for reliable time zone conversion
+  try {
+    // Get the date string in Pacific time using Intl
+    const pacificDateStr = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/Los_Angeles',
+      year: 'numeric',
+      month: 'numeric',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: 'numeric',
+      second: 'numeric',
+      hour12: false
+    }).format(now);
+    
+    // Parse the date string back into a Date object
+    // Format will be like "5/24/2023, 14:30:45"
+    const [datePart, timePart] = pacificDateStr.split(', ');
+    const [month, day, year] = datePart.split('/').map(n => parseInt(n, 10));
+    const [hour, minute, second] = timePart.split(':').map(n => parseInt(n, 10));
+    
+    // Create date in local time zone but with Pacific time components
+    const pacificDate = new Date();
+    pacificDate.setFullYear(year);
+    pacificDate.setMonth(month - 1); // JS months are 0-based
+    pacificDate.setDate(day);
+    pacificDate.setHours(hour, minute, second);
+    
+    console.log("Pacific time via Intl API:", pacificDate.toString());
+    return pacificDate;
+  } catch (e) {
+    console.warn("Error using Intl.DateTimeFormat for time zone, falling back to manual calculation", e);
+    
+    // Fallback to the original calculation method
+    // Automatically determine if daylight saving is in effect
+    const jan = new Date(now.getFullYear(), 0, 1);
+    const jul = new Date(now.getFullYear(), 6, 1);
+    const stdTimezoneOffset = Math.max(jan.getTimezoneOffset(), jul.getTimezoneOffset());
+    const isDST = now.getTimezoneOffset() < stdTimezoneOffset;
+    
+    // Adjust for daylight saving time if needed
+    const pacificOffset = isDST ? -7 * 60 : -8 * 60; // -7 or -8 hours in minutes
+    
+    // Convert to Pacific time
+    const pacificTime = new Date(now.getTime() + (now.getTimezoneOffset() + pacificOffset) * 60000);
+    console.log("Pacific time via manual calculation:", pacificTime.toString());
+    return pacificTime;
+  }
 }
 
 function draw() {
@@ -688,6 +773,12 @@ function keyPressed() {
   if (key === 'h' || key === 'H') {
     toggleHelpPopup();
   }
+  
+  // Add keyboard shortcut for debug force refresh (Ctrl+R)
+  if (keyCode === 82 && keyIsDown(CONTROL)) {  // 'R' key with CTRL modifier
+    forceRefreshChallenge();
+    return false; // Prevent browser refresh
+  }
 }
 
 function checkWord() {
@@ -1086,4 +1177,32 @@ function displayHelpPopup() {
   textSize(14);
   textAlign(CENTER);
   text("Click anywhere to close", width/2, popupY + popupHeight - 20);
+}
+
+// Function to manually force a refresh of the daily challenge
+// This can be used for debugging or if challenges aren't updating properly
+function forceRefreshChallenge() {
+  console.log("Manually forcing challenge refresh...");
+  
+  // Clear the stored date to ensure we get a new challenge
+  localStorage.removeItem('lastChallengeDate');
+  
+  // Get a new challenge
+  getDailyChallenge().then(challenge => {
+    startWord = challenge.startWord;
+    targetWord = challenge.targetWord;
+    challengeDifficulty = challenge.difficulty;
+    
+    // Reset game state
+    currentWord = startWord;
+    wordChain = [startWord];
+    message = "Challenge manually refreshed!";
+    gameWon = false;
+    
+    console.log("Challenge manually refreshed:", startWord, "→", targetWord);
+    console.log("Difficulty:", challengeDifficulty.difficultyText);
+  }).catch(error => {
+    console.error("Error manually refreshing challenge:", error);
+    message = "Error refreshing challenge.";
+  });
 }
