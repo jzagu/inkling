@@ -147,6 +147,14 @@ async function setupDailyChallenge() {
       targetWord = challenge.targetWord;
       challengeDifficulty = challenge.difficulty;
       
+      // Update the difficulty based on our theoretical fewest moves calculation
+      if (startWord && targetWord) {
+        const theoreticalDifficulty = getDifficultyFromTheoreticalMoves();
+        challengeDifficulty.score = theoreticalDifficulty.score;
+        challengeDifficulty.difficultyText = theoreticalDifficulty.difficultyText;
+        console.log(`Updated difficulty to ${challengeDifficulty.difficultyText} based on theoretical fewest moves: ${theoreticalDifficulty.theoreticalFewestMoves}`);
+      }
+      
       // Initialize game with the start word
       currentWord = startWord;
       wordChain = [startWord];
@@ -154,7 +162,7 @@ async function setupDailyChallenge() {
       
       console.log(`Daily Challenge: ${startWord} → ${targetWord}`);
       if (challengeDifficulty) {
-        console.log(`Difficulty: ${challengeDifficulty.difficultyText} (${challengeDifficulty.score}/5)`);
+        console.log(`Difficulty: ${challengeDifficulty.difficultyText} (${challengeDifficulty.shortestPath} moves)`);
         console.log(`Challenge data:`, challengeDifficulty);
         
         // Add warning if the definition of shortestPath is inconsistent with our understanding
@@ -179,10 +187,10 @@ async function setupDailyChallenge() {
         message = "Using default words (failed to load daily challenge).";
         challengeDifficulty = {
           score: 3,
-          difficultyText: "Medium",
           letterDifference: 4,
           shortestPath: 3,
-          possiblePaths: 5
+          possiblePaths: 5,
+          difficultyText: "Hard"
         };
       }
     }
@@ -195,10 +203,10 @@ async function setupDailyChallenge() {
     wordChain = [startWord];
     challengeDifficulty = {
       score: 3,
-      difficultyText: "Medium",
       letterDifference: 4,
       shortestPath: 3,
-      possiblePaths: 5
+      possiblePaths: 5,
+      difficultyText: "Hard"
     };
   }
   
@@ -244,6 +252,14 @@ function checkForNewDay() {
           startWord = challenge.startWord;
           targetWord = challenge.targetWord;
           challengeDifficulty = challenge.difficulty;
+          
+          // Update the difficulty based on our theoretical fewest moves calculation
+          if (startWord && targetWord) {
+            const theoreticalDifficulty = getDifficultyFromTheoreticalMoves();
+            challengeDifficulty.score = theoreticalDifficulty.score;
+            challengeDifficulty.difficultyText = theoreticalDifficulty.difficultyText;
+            console.log(`Updated difficulty to ${challengeDifficulty.difficultyText} based on theoretical fewest moves: ${theoreticalDifficulty.theoreticalFewestMoves}`);
+          }
           
           // Reset game state with new challenge
           currentWord = startWord;
@@ -988,10 +1004,27 @@ function createShareableResult() {
   const difficultyLevel = challengeDifficulty ? challengeDifficulty.score : 3;
   const performanceLevel = performance ? performance.score : 3;
   
-  // Difficulty emoji indicators (1-5 flame emojis)
+  // Difficulty emoji indicators based on difficulty text
   let difficultyEmojis = "";
-  for (let i = 0; i < Math.round(difficultyLevel); i++) {
-    difficultyEmojis += "🔥";
+  if (challengeDifficulty) {
+    switch(challengeDifficulty.difficultyText) {
+      case "Easy":
+        difficultyEmojis = "🟢";
+        break;
+      case "Medium":
+        difficultyEmojis = "🟡";
+        break;
+      case "Hard":
+        difficultyEmojis = "🔥🔥";
+        break;
+      case "Extreme":
+        difficultyEmojis = "🔥🔥🔥";
+        break;
+      default:
+        difficultyEmojis = "🟡";
+    }
+  } else {
+    difficultyEmojis = "🟡"; // Default
   }
   
   // Performance emoji indicators (1-5 star emojis)
@@ -1205,4 +1238,63 @@ function forceRefreshChallenge() {
     console.error("Error manually refreshing challenge:", error);
     message = "Error refreshing challenge.";
   });
+}
+
+// Function to determine difficulty level based on theoretical fewest moves
+function getDifficultyFromTheoreticalMoves() {
+  // We need to dynamically calculate the theoretical fewest moves 
+  // based on the game's rules and available dictionary
+  
+  // First check if direct move is possible (can change 1-2 letters to go directly to target)
+  const directLetterDiff = countDifferences(startWord, targetWord);
+  const directMoveIsPossible = directLetterDiff <= 2;
+  
+  // Calculate the theoretical minimum
+  let theoreticalFewestMoves;
+  
+  if (directMoveIsPossible) {
+    // If you can go directly from start to target with 1-2 letter changes, only 1 move is needed
+    theoreticalFewestMoves = 1;
+    console.log(`Direct move possible (${directLetterDiff} letter difference): theoretical fewest = 1`);
+  } 
+  // Check if there's a bridge word that would connect start and target with one move each
+  else {
+    // Look for a bridge word
+    const bridgeWord = findBridgeWord(startWord, targetWord);
+    if (bridgeWord) {
+      // If a bridge word exists, we need only 1 move (the bridge word)
+      theoreticalFewestMoves = 1;
+      console.log(`Bridge word exists (${bridgeWord}): theoretical fewest = 1`);
+    }
+    else {
+      // Otherwise, use the reported value (but with a maximum sanity check)
+      // Most 6-letter word puzzles can be solved in 2-4 moves
+      const reportedPath = challengeDifficulty ? challengeDifficulty.shortestPath : 2;
+      theoreticalFewestMoves = Math.min(reportedPath, 5); // Sanity cap at 5 moves
+      console.log(`Using reported shortest path: ${reportedPath} (capped at 5)`);
+    }
+  }
+  
+  // Calculate difficulty based on theoretical fewest moves
+  let difficultyScore, difficultyText;
+  
+  if (theoreticalFewestMoves === 1) {
+    difficultyScore = 1;
+    difficultyText = "Easy";
+  } else if (theoreticalFewestMoves === 2) {
+    difficultyScore = 2;
+    difficultyText = "Medium";
+  } else if (theoreticalFewestMoves >= 3 && theoreticalFewestMoves <= 4) {
+    difficultyScore = 3;
+    difficultyText = "Hard";
+  } else { // theoreticalFewestMoves >= 5
+    difficultyScore = 5;
+    difficultyText = "Extreme";
+  }
+  
+  return {
+    score: difficultyScore,
+    theoreticalFewestMoves: theoreticalFewestMoves,
+    difficultyText: difficultyText
+  };
 }
