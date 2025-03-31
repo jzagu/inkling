@@ -2,6 +2,110 @@
 // This module handles generating daily start and target word pairs
 // that change at midnight Pacific time
 
+// Embedded list of common six-letter words directly in the code
+// This eliminates the need to load from an external file
+const embeddedWordList = [
+  "accept", "access", "accord", "across", "action", "active", "actual", "adding", "adjust", "admire",
+  "affair", "affect", "afford", "afraid", "agency", "agreed", "allows", "almost", "alters", "always",
+  "amount", "amused", "animal", "annual", "answer", "anyone", "anyway", "appeal", "appear", "around",
+  "arrive", "artist", "asking", "aspect", "assess", "assign", "assume", "assure", "attach", "attack",
+  "attain", "attend", "author", "autumn", "avoids", "backup", "badly", "battle", "beauty", "became",
+  "become", "before", "begins", "behalf", "behave", "behind", "beings", "belief", "belong", "better",
+  "beyond", "bigger", "binary", "bishop", "blocks", "blonde", "bodies", "border", "borrow", "bother",
+  "bottom", "bought", "branch", "brands", "breach", "breaks", "breath", "breeds", "brief", "brings",
+  "broken", "budget", "builds", "burden", "bureau", "butter", "button", "buying", "cables", "called",
+  "cannot", "canton", "carbon", "career", "caring", "carved", "casual", "caught", "caused", "center",
+  "chance", "change", "charge", "choice", "choose", "chosen", "church", "circle", "claims", "clarify",
+  "classes", "cleared", "clearly", "client", "closed", "closer", "closes", "coding", "coffee", "column",
+  "coming", "common", "comply", "copper", "corner", "correct", "cosmic", "costing", "cotton", "counts",
+  "county", "couple", "course", "covers", "create", "credit", "crisis", "critic", "cross", "crucial",
+  "crying", "cursor", "cycle", "damage", "danger", "dating", "debate", "decade", "decide", "deeply",
+  "defeat", "defect", "defend", "define", "degree", "delays", "deliver", "demand", "denied", "depend",
+  "deploy", "depth", "design", "desire", "detail", "detect", "device", "devote", "differ", "digit",
+  "dinner", "direct", "divide", "divine", "doctor", "dollar", "domain", "donate", "double", "doubts",
+  "dozens", "drafts", "dragon", "drains", "drawer", "dreams", "drinks", "driven", "driver", "drives",
+  "during", "duties", "eager", "earned", "easier", "easily", "eating", "editor", "effect", "effort",
+  "eighth", "either", "eleven", "emerge", "employ", "enable", "ending", "energy", "engage", "engine",
+  "enjoys", "enough", "ensure", "enters", "entire", "entity", "entree", "equals", "errors", "escape",
+  "ethics", "events", "exactly", "exceed", "except", "excess", "excited", "exclude", "excuse", "exists",
+  "expand", "expect", "expert", "explain", "export", "expose", "extend", "extent", "extern", "extra",
+  "facing", "factor", "failed", "fairly", "fallen", "family", "famous", "faster", "father", "fear",
+  "feature", "federal", "feeding", "feeling", "female", "fields", "fierce", "fifth", "fifty", "fights",
+  "figure", "filing", "filled", "filter", "finals", "finder", "finest", "finger", "finish", "firing",
+  "firmly", "fiscal", "fitted", "fixing", "flight", "flower", "flying", "follow", "forced", "forces",
+  "forest", "forgot", "formal", "format", "former", "foster", "fought", "fourth", "freely", "french",
+  "friend", "front", "fruits", "funded", "funnel", "future", "gained", "garden", "gather", "gender",
+  "genius", "gentle", "giving", "glance", "global", "golden", "gotten", "grades", "grants", "greatly",
+  "ground", "groups", "growth", "guards", "guided", "habits", "handle", "happen", "harbor", "hardly",
+  "having", "headed", "header", "health", "heard", "hearth", "hearts", "height", "helped", "hereby",
+  "hidden", "higher", "highly", "hiring", "hissed", "holder", "honest", "hoping", "hosted", "hotels",
+  "houses", "humans", "hurdle", "hybrid", "ideals", "ideas", "ignore", "images", "impact", "import",
+  "impose", "inches", "income", "indeed", "infant", "inform", "injury", "inland", "inputs", "insert",
+  "inside", "insist", "insure", "intact", "intend", "intent", "invest", "invite", "island", "issued",
+  "issues", "itself", "joined", "joints", "judged", "justice", "keeper", "kernel", "kicked", "killed",
+  "kindly", "knight", "knives", "labors", "lacked", "ladies", "laden", "lands", "larger", "lasted",
+  "lately", "latest", "latter", "launch", "lawyer", "leaders", "league", "leaves", "legacy", "legend",
+  "length", "lessen", "lesser", "lesson", "letter", "levels", "liable", "lifted", "lights", "liking",
+  "limits", "linear", "linked", "listed", "listen", "little", "living", "loaded", "locals", "locate",
+  "locked", "lodged", "logged", "lonely", "longer", "looked", "loose", "losing", "losses", "louder",
+  "loudly", "lovely", "lovers", "loving", "lowest", "lumber", "luxury", "lyrics", "mailed", "mainly",
+  "making", "manage", "manner", "manual", "margin", "marked", "market", "master", "matter", "mature",
+  "medium", "member", "memory", "mental", "mentor", "merely", "merger", "merits", "method", "middle",
+  "mighty", "mining", "minute", "mirror", "mister", "misuse", "mixing", "mobile", "models", "modern",
+  "modify", "moment", "months", "mostly", "mother", "motion", "moving", "murder", "museum", "mutual",
+  "myself", "namely", "narrow", "nation", "native", "nature", "nearby", "nearly", "needed", "needle",
+  "neural", "newest", "nicely", "nights", "nobody", "noises", "normal", "notice", "notify", "notion",
+  "number", "object", "obtain", "occupy", "occurs", "oceans", "offers", "office", "offset", "oldest",
+  "omitted", "online", "opened", "openly", "oppose", "option", "orders", "origin", "others", "outfit",
+  "outlay", "outlet", "output", "owners", "owning", "oxygen", "packed", "paired", "palace", "panels",
+  "papers", "parent", "parish", "partly", "passed", "passes", "pastor", "patent", "patrol", "pause",
+  "paying", "peanut", "people", "period", "permit", "person", "petite", "phrase", "pieces", "placed",
+  "places", "planet", "played", "player", "please", "pledge", "plenty", "pocket", "poetry", "points",
+  "police", "policy", "polls", "popped", "portal", "posted", "pounds", "poured", "powers", "praise",
+  "prayer", "prefer", "pretty", "priced", "prices", "priest", "primal", "prime", "prince", "prints",
+  "prison", "prized", "proper", "proved", "proven", "public", "pulled", "punish", "pursue", "pushed",
+  "puzzle", "quoted", "rabbit", "racial", "raised", "random", "ranger", "rarely", "rather", "rating",
+  "reader", "really", "reason", "recall", "recent", "recipe", "record", "redeem", "reduce", "refers",
+  "refine", "reform", "refuge", "refuse", "regain", "regard", "regime", "region", "regret", "reject",
+  "relate", "relied", "relief", "remain", "remake", "remind", "remove", "render", "rental", "repair",
+  "repeat", "replay", "report", "rescue", "resist", "resort", "result", "resume", "retain", "retake",
+  "return", "reveal", "review", "reward", "rhythm", "ribbon", "richer", "riding", "rights", "rivers",
+  "robust", "rocket", "rolled", "roller", "romans", "rookie", "rooted", "rounds", "routes", "rubbed",
+  "rubber", "ruling", "runner", "runway", "rushed", "rustic", "sacred", "saddle", "safely", "safety",
+  "sailed", "salary", "salmon", "sample", "saving", "saying", "scales", "scared", "scenes", "scheme",
+  "school", "scored", "scores", "screen", "script", "scroll", "sealed", "search", "season", "second",
+  "secret", "secure", "seeing", "seemed", "seized", "seldom", "select", "seller", "senior", "sensed",
+  "serial", "series", "served", "server", "serves", "settle", "sevens", "severe", "sewing", "shades",
+  "shadow", "shaken", "shaped", "shapes", "shared", "shares", "sheets", "shells", "shield", "shifts",
+  "shines", "shirts", "shoots", "shores", "shorts", "should", "showed", "shower", "shrank", "shrink",
+  "sighed", "signal", "signed", "silent", "silver", "simple", "simply", "singer", "single", "sister",
+  "sitting", "skilled", "skills", "skirts", "slaves", "sleeve", "sliced", "slides", "slight", "slopes",
+  "slowed", "slowly", "smiled", "smooth", "snakes", "soccer", "social", "solely", "solved", "sooner",
+  "sorted", "sought", "sounds", "source", "spaces", "speaks", "speech", "speeds", "spend", "spent",
+  "sphere", "spikes", "spirit", "splits", "spoken", "sports", "spouse", "spread", "spring", "square",
+  "stable", "staged", "stages", "stakes", "stands", "stared", "starts", "stated", "states", "status",
+  "stayed", "steady", "stolen", "stomach", "stones", "stored", "stores", "storms", "strain", "strand",
+  "street", "stress", "strict", "strike", "string", "strips", "stroke", "strong", "struck", "studio",
+  "submit", "subtle", "suburb", "sucked", "sudden", "suffer", "suited", "suites", "summer", "summit",
+  "summon", "sunset", "supper", "supply", "surely", "survey", "sweets", "switch", "symbol", "syntax",
+  "system", "tables", "tackle", "taking", "talents", "talked", "taller", "target", "tasted", "tastes",
+  "taught", "teased", "temple", "tenant", "tended", "tennis", "terror", "tested", "thanks", "theirs",
+  "themes", "theory", "thirty", "though", "thread", "threat", "throat", "throne", "thrown", "throws",
+  "ticket", "tigers", "timber", "timing", "tissue", "titled", "titles", "tongue", "topics", "topped",
+  "tossed", "toward", "traced", "tracks", "trader", "tragic", "trains", "traits", "trauma", "travel",
+  "treats", "treaty", "trends", "trials", "tribes", "tricks", "troops", "trophy", "trucks", "trusts",
+  "truths", "trying", "tubing", "tucked", "turned", "twelve", "twenty", "typing", "unable", "uneven",
+  "unfair", "unhappy", "unique", "united", "unless", "unlike", "update", "upheld", "upward", "urgent",
+  "usable", "useful", "username", "usual", "valley", "values", "varied", "varies", "vastly", "vector",
+  "vendor", "venue", "verbal", "verify", "versus", "vessels", "victim", "viewed", "viewer", "viking",
+  "virtue", "vision", "visits", "voiced", "voices", "volume", "voters", "voting", "voyage", "waited",
+  "waiver", "waking", "walked", "wallet", "walnut", "wanted", "warden", "warned", "washed", "wasted",
+  "waters", "waving", "wealth", "weapon", "weekly", "weight", "whales", "wheels", "whilst", "whites",
+  "wholly", "widget", "widely", "widens", "widely", "wilder", "wildly", "window", "winner", "winter",
+  "wisdom", "wished", "wishes", "within", "wizard", "wolves", "wonder", "wooden", "worker", "worthy",
+  "writer", "writes", "yellow", "yields", "younger", "youths"
+];
+
 // Simple list of words for validating path existence
 let simpleWordList = [];
 let isWordListLoaded = false;
@@ -9,30 +113,53 @@ let isWordListLoaded = false;
 // Load the simple word list for path validation
 async function loadSimpleWordList() {
   try {
-    // First check if the preloaded data is available
-    if (window.simpleWordListData && window.simpleWordListData.length > 0) {
-      simpleWordList = window.simpleWordListData;
-      isWordListLoaded = true;
-      console.log(`Using preloaded simple word list with ${simpleWordList.length} words`);
-      return true;
-    }
-
-    // If not preloaded, try to load it directly
-    const response = await fetch('six_letter_simple_word_list.csv.csv');
-    const text = await response.text();
-    simpleWordList = text.split('\n')
-      .map(word => word.trim().toLowerCase())
-      .filter(word => word.length === 6);
-    
+    // Use the embedded word list as the primary source
+    simpleWordList = [...embeddedWordList];
     isWordListLoaded = true;
-    console.log(`Simple word list loaded with ${simpleWordList.length} words for path validation`);
+    console.log(`Using embedded word list with ${simpleWordList.length} words`);
+    
+    // Optionally try to load additional words
+    try {
+      // First check if the preloaded data is available
+      if (window.simpleWordListData && window.simpleWordListData.length > 0) {
+        // Add any words that aren't already in our list
+        for (const word of window.simpleWordListData) {
+          if (!simpleWordList.includes(word)) {
+            simpleWordList.push(word);
+          }
+        }
+        console.log(`Added words from preloaded data, now have ${simpleWordList.length} words`);
+      } else {
+        // If not preloaded, try to load from file but don't wait for it
+        fetch('six_letter_simple_word_list.csv.csv').then(async response => {
+          const text = await response.text();
+          const additionalWords = text.split('\n')
+            .map(word => word.trim().toLowerCase())
+            .filter(word => word.length === 6);
+            
+          // Add any words that aren't already in our list
+          for (const word of additionalWords) {
+            if (!simpleWordList.includes(word)) {
+              simpleWordList.push(word);
+            }
+          }
+          console.log(`Added words from file, now have ${simpleWordList.length} words`);
+        }).catch(e => {
+          console.log("Could not load additional words from file, using embedded list only");
+        });
+      }
+    } catch (e) {
+      console.log("Error trying to load additional words, using embedded list only");
+    }
+    
     return true;
   } catch (error) {
-    console.error('Error loading simple word list:', error);
-    // Fallback to a minimal list if loading fails
-    simpleWordList = ["forest", "foster", "faster", "master", "mister", "winter", 
-                      "sudden", "garden", "golden", "wonder", "worker", "winner"];
-    isWordListLoaded = true;
+    console.error('Error setting up word list:', error);
+    // Even in case of error, our embedded list should be available
+    if (simpleWordList.length === 0) {
+      simpleWordList = [...embeddedWordList];
+      isWordListLoaded = true;
+    }
     return true;
   }
 }
@@ -54,22 +181,45 @@ function areWordsConnectable(word1, word2) {
 
 // Find all words that can be reached from a given word
 function findConnections(word, wordList) {
+  // Optimization: For large dictionaries, use a more efficient approach
+  if (wordList.length > 200) {
+    // First filter by length to ensure we're only checking words of the same length
+    // This is already guaranteed for our list, but keeping for robustness
+    const sameLength = wordList.filter(w => w.length === word.length && w !== word);
+    
+    // Then find words that are 1-2 letters different
+    return sameLength.filter(w => {
+      const diff = countDifferences(word, w);
+      return diff === 1 || diff === 2;
+    });
+  }
+  
+  // Original implementation for smaller word lists
   return wordList.filter(w => 
     w !== word && areWordsConnectable(word, w)
   );
 }
 
 // Check if there's a possible path between start and target words
-// using breadth-first search algorithm
+// using breadth-first search algorithm with a depth limit
 function canFindPath(startWord, targetWord, wordList) {
   if (startWord === targetWord) return true;
   if (!wordList.includes(startWord) || !wordList.includes(targetWord)) return false;
   
-  const queue = [startWord];
+  // Direct check - if they're 1-2 letters apart, return true immediately
+  if (areWordsConnectable(startWord, targetWord)) return true;
+  
+  // For larger dictionaries, limit the search depth to avoid excessive computation
+  const maxDepth = 4;
+  
+  const queue = [[startWord, 0]]; // [word, depth]
   const visited = new Set([startWord]);
   
   while (queue.length > 0) {
-    const currentWord = queue.shift();
+    const [currentWord, depth] = queue.shift();
+    
+    // Stop searching if we've reached the maximum depth
+    if (depth >= maxDepth) continue;
     
     // Found a direct connection to target word
     if (areWordsConnectable(currentWord, targetWord)) {
@@ -82,12 +232,12 @@ function canFindPath(startWord, targetWord, wordList) {
     for (const nextWord of connections) {
       if (!visited.has(nextWord)) {
         visited.add(nextWord);
-        queue.push(nextWord);
+        queue.push([nextWord, depth + 1]);
       }
     }
   }
   
-  // No path found
+  // No path found within the depth limit
   return false;
 }
 
@@ -171,83 +321,39 @@ function calculateDifficulty(startWord, targetWord, wordList) {
   console.log(`Shortest path: ${shortestPath}`);
   
   // If no path exists, return maximum difficulty
-  if (shortestPath === -1) return 5;
-  
-  // Adjust difficulty thresholds - make it more reasonable
-  // If direct move is possible (difference of 1-2 letters), should be Easy-Medium
-  if (shortestPath === 1) {
-    // Direct move is possible - base difficulty on letter difference
-    const directDifficultyScore = letterDifference === 1 ? 1 : 1.5; // 1 letter = Easy, 2 letters = Medium
-    
-    return {
-      score: directDifficultyScore,
-      letterDifference,
-      shortestPath,
-      possiblePaths: countPossiblePaths(startWord, targetWord, wordList),
-      difficultyText: getDifficultyText(directDifficultyScore)
-    };
-  }
-  
-  // If the shortest path requires more moves, scale difficulty
-  if (shortestPath >= 4) {
-    // Very long paths are Master difficulty
+  if (shortestPath === -1) {
     return {
       score: 5,
       letterDifference,
-      shortestPath,
-      possiblePaths: countPossiblePaths(startWord, targetWord, wordList),
-      difficultyText: "Master"
+      shortestPath: -1,
+      possiblePaths: 0,
+      difficultyText: "Extreme"
     };
-  } else if (shortestPath >= 3) {
-    // 3 moves is Expert difficulty
-    return {
-      score: 4,
-      letterDifference,
-      shortestPath,
-      possiblePaths: countPossiblePaths(startWord, targetWord, wordList),
-      difficultyText: "Expert"
-    };
+  }
+  
+  // Simplified difficulty scale based solely on shortest path length:
+  // 1 move = Easy
+  // 2 moves = Medium
+  // 3-4 moves = Hard
+  // 5+ moves = Extreme
+  let difficultyScore, difficultyText;
+  
+  if (shortestPath === 1) {
+    difficultyScore = 1;
+    difficultyText = "Easy";
   } else if (shortestPath === 2) {
-    // 2 moves is Hard difficulty
-    return {
-      score: 3,
-      letterDifference,
-      shortestPath,
-      possiblePaths: countPossiblePaths(startWord, targetWord, wordList),
-      difficultyText: "Hard"
-    };
+    difficultyScore = 2;
+    difficultyText = "Medium";
+  } else if (shortestPath >= 3 && shortestPath <= 4) {
+    difficultyScore = 3;
+    difficultyText = "Hard";
+  } else { // shortestPath >= 5
+    difficultyScore = 5;
+    difficultyText = "Extreme";
   }
   
-  // Calculate path diversity (limited to avoid expensive computation)
+  // Count possible paths for informational purposes
   const possiblePaths = countPossiblePaths(startWord, targetWord, wordList);
-  console.log(`Possible paths: ${possiblePaths}`);
-  
-  // Calculate difficulty score (1-5)
-  let difficultyScore = 0;
-  
-  // Letter difference contributes to difficulty with more granular scoring
-  // 1 letter different = 0.2 points
-  // 2 letters different = 0.4 points
-  // 3 letters different = 0.6 points
-  // 4 letters different = 0.8 points
-  // 5 letters different = 1.0 points
-  // 6 letters different = 1.2 points
-  difficultyScore += Math.min(letterDifference * 0.2, 1.2);
-  
-  // Path length contributes much more to difficulty (longer = harder)
-  difficultyScore += Math.min(shortestPath * 1.0, 3.0); // 0-3.0 points (reduced weight)
-  
-  // Path diversity inversely contributes more (fewer paths = harder)
-  if (possiblePaths === 0) {
-    difficultyScore += 1.5; // Maximum difficulty for no paths
-  } else if (possiblePaths < 3) {
-    difficultyScore += 1.2; // Very few paths
-  } else if (possiblePaths < 8) {
-    difficultyScore += 0.6; // Some paths
-  }
-  
-  // Round to nearest 0.5 and ensure in range 1-5
-  difficultyScore = Math.max(1, Math.min(5, Math.round(difficultyScore * 2) / 2));
   
   // Return difficulty metrics
   return {
@@ -255,17 +361,16 @@ function calculateDifficulty(startWord, targetWord, wordList) {
     letterDifference,
     shortestPath,
     possiblePaths,
-    difficultyText: getDifficultyText(difficultyScore)
+    difficultyText: difficultyText
   };
 }
 
-// Convert numerical difficulty to text description
+// Convert numerical difficulty to text description - simplified for new scale
 function getDifficultyText(score) {
-  if (score <= 1.5) return "Easy";
-  if (score <= 2.5) return "Medium";
-  if (score <= 3.5) return "Hard";
-  if (score <= 4.5) return "Expert";
-  return "Master";
+  if (score === 1) return "Easy";
+  if (score === 2) return "Medium";
+  if (score === 3) return "Hard";
+  return "Extreme";
 }
 
 // Generate a seed for consistent random number generation based on the date
@@ -359,21 +464,24 @@ function generateDailyChallenge() {
   };
   
   try {
-    // Make sure we have a word list to work with
-    if (!isWordListLoaded || simpleWordList.length < 10) {
-      console.warn("Word list not fully loaded yet, using default words");
-      return { startWord, targetWord, difficulty };
+    // Make sure we have words to work with - now we always do!
+    if (simpleWordList.length < 10) {
+      console.log("Word list not loaded yet, initializing with embedded list");
+      simpleWordList = [...embeddedWordList];
+      isWordListLoaded = true;
     }
+    
+    console.log(`Generating daily challenge using ${simpleWordList.length} words`);
     
     // Use today's date as seed for random number generator
     const dateSeed = getDateSeed();
     const rng = new SeededRandom(dateSeed);
     
     // Only attempt a limited number of times to avoid infinite loops
-    const maxAttempts = 50;
+    const maxAttempts = 100;
     
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
-      // Pick two random words from the simple list
+      // Pick two random words from our word list
       const index1 = rng.randomInt(0, simpleWordList.length - 1);
       const index2 = rng.randomInt(0, simpleWordList.length - 1);
       
@@ -408,14 +516,24 @@ const wordListPromise = loadSimpleWordList();
 
 // Main function to get the daily challenge
 async function getDailyChallenge() {
-  // If word list is not loaded yet, wait for it to load
+  // If word list is not loaded yet, try to load it
   if (!isWordListLoaded) {
+    // If the word list isn't loaded, initialize with embedded list
+    if (simpleWordList.length === 0) {
+      simpleWordList = [...embeddedWordList];
+      isWordListLoaded = true;
+      console.log("Initialized with embedded word list for immediate use");
+    }
+    
     try {
+      // Try to load additional words asynchronously
       await wordListPromise;
     } catch (error) {
-      console.error("Error waiting for word list to load:", error);
+      console.error("Error loading additional words:", error);
+      // Even on error, we still have the embedded list
     }
   }
   
+  // Generate the challenge
   return generateDailyChallenge();
 } 
