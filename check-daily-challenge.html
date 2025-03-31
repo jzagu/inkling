@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Daily Challenge Test</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+      background-color: #f0f0f0;
+    }
+    .result {
+      background-color: #fff;
+      border: 1px solid #ddd;
+      padding: 15px;
+      margin: 15px 0;
+      border-radius: 5px;
+    }
+    .log {
+      background-color: #f9f9f9;
+      border: 1px solid #ddd;
+      padding: 15px;
+      margin: 15px 0;
+      height: 200px;
+      overflow-y: auto;
+      font-family: monospace;
+      white-space: pre-wrap;
+    }
+    button {
+      background-color: #4CAF50;
+      color: white;
+      padding: 10px 15px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #45a049;
+    }
+  </style>
+</head>
+<body>
+  <h1>Daily Challenge Test</h1>
+  <p>This page tests the daily challenge word pair generation functionality.</p>
+  
+  <button id="testBtn">Generate Daily Challenge</button>
+  
+  <div class="result" id="result">
+    <p>Press the button to generate a daily challenge.</p>
+  </div>
+  
+  <h2>Console Log:</h2>
+  <div class="log" id="log"></div>
+  
+  <script>
+    // Override console.log to display in our log div
+    const originalLog = console.log;
+    const originalError = console.error;
+    const originalWarn = console.warn;
+    const logElement = document.getElementById('log');
+    
+    console.log = function(...args) {
+      originalLog.apply(console, args);
+      const message = args.map(arg => 
+        typeof arg === 'object' ? JSON.stringify(arg) : arg
+      ).join(' ');
+      logElement.innerHTML += `<div style="color: black;">LOG: ${message}</div>`;
+      logElement.scrollTop = logElement.scrollHeight;
+    };
+    
+    console.error = function(...args) {
+      originalError.apply(console, args);
+      const message = args.map(arg => 
+        typeof arg === 'object' ? JSON.stringify(arg) : arg
+      ).join(' ');
+      logElement.innerHTML += `<div style="color: red;">ERROR: ${message}</div>`;
+      logElement.scrollTop = logElement.scrollHeight;
+    };
+    
+    console.warn = function(...args) {
+      originalWarn.apply(console, args);
+      const message = args.map(arg => 
+        typeof arg === 'object' ? JSON.stringify(arg) : arg
+      ).join(' ');
+      logElement.innerHTML += `<div style="color: orange;">WARN: ${message}</div>`;
+      logElement.scrollTop = logElement.scrollHeight;
+    };
+  </script>
+  
+  <!-- Load the challenge module -->
+  <script src="daily-challenge.js"></script>
+  
+  <script>
+    document.getElementById('testBtn').addEventListener('click', async () => {
+      const resultElement = document.getElementById('result');
+      resultElement.innerHTML = '<p>Generating challenge...</p>';
+      
+      try {
+        // Get the date in Pacific time
+        const now = new Date();
+        const jan = new Date(now.getFullYear(), 0, 1);
+        const jul = new Date(now.getFullYear(), 6, 1);
+        const stdTimezoneOffset = Math.max(jan.getTimezoneOffset(), jul.getTimezoneOffset());
+        const isDST = now.getTimezoneOffset() < stdTimezoneOffset;
+        const pacificOffset = isDST ? -7 * 60 : -8 * 60;
+        const pacificTime = new Date(now.getTime() + (now.getTimezoneOffset() + pacificOffset) * 60000);
+        
+        // Format the date for display
+        const dateString = pacificTime.toLocaleDateString('en-US', {
+          weekday: 'long',
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+          timeZone: 'America/Los_Angeles'
+        });
+        
+        // Wait for daily challenge to be generated
+        const challenge = await getDailyChallenge();
+        
+        // Display the result
+        resultElement.innerHTML = `
+          <h3>Daily Challenge for ${dateString} (Pacific Time)</h3>
+          <p><strong>Start Word:</strong> ${challenge.startWord}</p>
+          <p><strong>Target Word:</strong> ${challenge.targetWord}</p>
+          <p><strong>Letter Differences:</strong> ${countDifferences(challenge.startWord, challenge.targetWord)}</p>
+          <p><strong>Path Possible:</strong> ${canFindPath(challenge.startWord, challenge.targetWord, simpleWordList) ? 'Yes' : 'No'}</p>
+        `;
+      } catch (error) {
+        console.error('Error generating challenge:', error);
+        resultElement.innerHTML = `<p>Error generating challenge: ${error.message}</p>`;
+      }
+    });
+  </script>
+</body>
+</html> 
