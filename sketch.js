@@ -785,11 +785,6 @@ function keyPressed() {
     gameWon = false;
   }
   
-  // Add keyboard shortcut for help popup (h key)
-  if (key === 'h' || key === 'H') {
-    toggleHelpPopup();
-  }
-  
   // Add keyboard shortcut for debug force refresh (Ctrl+R)
   if (keyCode === 82 && keyIsDown(CONTROL)) {  // 'R' key with CTRL modifier
     forceRefreshChallenge();
