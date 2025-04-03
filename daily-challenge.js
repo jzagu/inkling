@@ -311,43 +311,48 @@ function countPossiblePaths(startWord, targetWord, wordList, maxDepth = 4) {
 
 // Calculate difficulty score between 1-5 (1=easy, 5=hard)
 function calculateDifficulty(startWord, targetWord, wordList) {
-  // Get metrics that contribute to difficulty
-  const letterDifference = countDifferences(startWord, targetWord);
-  const shortestPath = findShortestPath(startWord, targetWord, wordList);
+  // First check if direct move is possible (can change 1-2 letters to go directly to target)
+  const directLetterDiff = countDifferences(startWord, targetWord);
+  const directMoveIsPossible = directLetterDiff <= 2;
   
-  // Log the metrics for debugging
-  console.log(`Difficulty calculation for ${startWord} → ${targetWord}:`);
-  console.log(`Letter difference: ${letterDifference}`);
-  console.log(`Shortest path: ${shortestPath}`);
+  // Calculate the theoretical minimum
+  let theoreticalFewestMoves;
   
-  // If no path exists, return maximum difficulty
-  if (shortestPath === -1) {
-    return {
-      score: 5,
-      letterDifference,
-      shortestPath: -1,
-      possiblePaths: 0,
-      difficultyText: "Extreme"
-    };
+  if (directMoveIsPossible) {
+    // If you can go directly from start to target with 1-2 letter changes, only 1 move is needed
+    theoreticalFewestMoves = 1;
+    console.log(`Direct move possible (${directLetterDiff} letter difference): theoretical fewest = 1`);
+  } 
+  // Check if there's a bridge word that would connect start and target with one move each
+  else {
+    // Look for a bridge word
+    const bridgeWord = findBridgeWord(startWord, targetWord, wordList);
+    if (bridgeWord) {
+      // If a bridge word exists, we need only 1 move (the bridge word)
+      theoreticalFewestMoves = 1;
+      console.log(`Bridge word exists (${bridgeWord}): theoretical fewest = 1`);
+    }
+    else {
+      // Otherwise, use the shortest path (but with a maximum sanity check)
+      const shortestPath = findShortestPath(startWord, targetWord, wordList);
+      theoreticalFewestMoves = Math.min(shortestPath, 5); // Sanity cap at 5 moves
+      console.log(`Using shortest path: ${shortestPath} (capped at 5)`);
+    }
   }
   
-  // Simplified difficulty scale based solely on shortest path length:
-  // 1 move = Easy
-  // 2 moves = Medium
-  // 3-4 moves = Hard
-  // 5+ moves = Extreme
+  // Calculate difficulty based on theoretical fewest moves
   let difficultyScore, difficultyText;
   
-  if (shortestPath === 1) {
+  if (theoreticalFewestMoves === 1) {
     difficultyScore = 1;
     difficultyText = "Easy";
-  } else if (shortestPath === 2) {
+  } else if (theoreticalFewestMoves === 2) {
     difficultyScore = 2;
     difficultyText = "Medium";
-  } else if (shortestPath >= 3 && shortestPath <= 4) {
+  } else if (theoreticalFewestMoves >= 3 && theoreticalFewestMoves <= 4) {
     difficultyScore = 3;
     difficultyText = "Hard";
-  } else { // shortestPath >= 5
+  } else { // theoreticalFewestMoves >= 5
     difficultyScore = 5;
     difficultyText = "Extreme";
   }
@@ -358,11 +363,30 @@ function calculateDifficulty(startWord, targetWord, wordList) {
   // Return difficulty metrics
   return {
     score: difficultyScore,
-    letterDifference,
-    shortestPath,
+    letterDifference: directLetterDiff,
+    shortestPath: theoreticalFewestMoves,
     possiblePaths,
-    difficultyText: difficultyText
+    difficultyText
   };
+}
+
+// Helper function to find a bridge word that connects two words
+function findBridgeWord(start, target, wordList) {
+  // Try to find a word that's 1-2 letters away from both start and target
+  for (let word of wordList) {
+    if (word === start || word === target) continue;
+    
+    // Check if word is 1-2 letters away from both start and target
+    const diffFromStart = countDifferences(start, word);
+    const diffFromTarget = countDifferences(word, target);
+    
+    if (diffFromStart <= 2 && diffFromTarget <= 2) {
+      console.log(`Found bridge word: ${word} (diffs: ${diffFromStart} from start, ${diffFromTarget} from target)`);
+      return word;
+    }
+  }
+  
+  return null; // No bridge word found
 }
 
 // Convert numerical difficulty to text description - simplified for new scale
@@ -378,70 +402,49 @@ function getDateSeed() {
   // Get current date 
   const now = new Date();
   
-  // Output the current date for debugging
-  console.log("Current date (local): ", now.toString());
+  // Get Pacific time using Intl.DateTimeFormat
+  const pacificDateStr = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Los_Angeles',
+    year: 'numeric',
+    month: 'numeric',
+    day: 'numeric'
+  }).format(now);
   
-  // Try to get Pacific time more reliably
-  let pacificTime;
-  try {
-    // First attempt: Using Intl.DateTimeFormat for proper time zone support
-    pacificTime = new Intl.DateTimeFormat('en-US', {
-      timeZone: 'America/Los_Angeles',
-      year: 'numeric',
-      month: 'numeric',
-      day: 'numeric'
-    }).format(now);
-    
-    // Convert to date components
-    const [month, day, year] = pacificTime.split('/').map(num => parseInt(num, 10));
-    
-    // Use consistent format for seed
-    const seedString = `${year}_${month}_${day}`;
-    console.log("Generated seed (Pacific Time): ", seedString);
-    return seedString;
-  } catch (e) {
-    console.warn("Error using Intl.DateTimeFormat, falling back to manual calculation", e);
-    
-    // Fallback to manual calculation (original code)
-    // Automatically determine if daylight saving is in effect
-    const jan = new Date(now.getFullYear(), 0, 1);
-    const jul = new Date(now.getFullYear(), 6, 1);
-    const stdTimezoneOffset = Math.max(jan.getTimezoneOffset(), jul.getTimezoneOffset());
-    const isDST = now.getTimezoneOffset() < stdTimezoneOffset;
-    
-    // Adjust for daylight saving time if needed
-    const pacificOffset = isDST ? -7 * 60 : -8 * 60; // -7 or -8 hours in minutes
-    
-    // Convert to Pacific time
-    pacificTime = new Date(now.getTime() + (now.getTimezoneOffset() + pacificOffset) * 60000);
-    
-    // Use year/month/day as seed
-    const seedString = `${pacificTime.getFullYear()}_${pacificTime.getMonth() + 1}_${pacificTime.getDate()}`;
-    console.log("Generated seed (fallback method): ", seedString);
-    return seedString;
-  }
+  // Convert to date components
+  const [month, day, year] = pacificDateStr.split('/').map(num => parseInt(num, 10));
+  
+  // Create a more robust seed by combining date components with a fixed string
+  // This helps ensure different seeds for different days
+  const seedString = `inkling_${year}_${month}_${day}`;
+  console.log("Generated seed (Pacific Time): ", seedString);
+  return seedString;
 }
 
 // Simple pseudo-random number generator with a seed
 class SeededRandom {
   constructor(seed) {
+    // Use a more robust hash function
     this.seed = this.hash(seed);
+    // Initialize with a few random numbers to improve distribution
+    for (let i = 0; i < 10; i++) {
+      this.random();
+    }
   }
   
-  // Simple string hash function
+  // Improved string hash function
   hash(str) {
-    let hash = 0;
+    let hash = 5381;
     for (let i = 0; i < str.length; i++) {
-      hash = ((hash << 5) - hash) + str.charCodeAt(i);
-      hash = hash & hash; // Convert to 32bit integer
+      hash = ((hash << 5) + hash) + str.charCodeAt(i);
     }
-    return hash;
+    return hash >>> 0; // Convert to unsigned 32-bit integer
   }
   
   // Generate random number between 0 and 1
   random() {
-    this.seed = (this.seed * 9301 + 49297) % 233280;
-    return this.seed / 233280;
+    // Use a better LCG multiplier and modulus
+    this.seed = (this.seed * 1664525 + 1013904223) >>> 0;
+    return this.seed / 4294967296; // Divide by 2^32
   }
   
   // Get random integer between min and max (inclusive)
