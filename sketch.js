@@ -218,32 +218,29 @@ async function setupDailyChallenge() {
 function checkForNewDay() {
   // Only check once per minute to avoid excessive calculations
   const now = Date.now();
-  if (now - lastCheckTime < 60000) return false;
-  
+  if (now - lastCheckTime < 60000) { // 60 seconds
+    return false;
+  }
   lastCheckTime = now;
   
-  // Get current date in Pacific timezone
+  // Get current date in Pacific time
   const pacificTime = getTodayInPacificTime();
+  const currentDateStr = pacificTime.toISOString().split('T')[0]; // YYYY-MM-DD format
   
-  // Debug logging - show current Pacific time
-  console.log("Current Pacific Time:", pacificTime.toString());
+  // Get stored date from localStorage
+  const storedDateStr = localStorage.getItem('lastChallengeDate');
+  const storedDateStrFormatted = storedDateStr ? new Date(storedDateStr).toISOString().split('T')[0] : null;
   
-  // Get stored date from localStorage or default to a past date
-  const storedDateStr = localStorage.getItem('lastChallengeDate') || '2000-01-01';
-  const storedDate = new Date(storedDateStr);
-  
-  // Debug logging - show stored date
-  console.log("Last challenge date from localStorage:", storedDate.toString());
-  console.log("Current date string:", pacificTime.toDateString());
-  console.log("Stored date string:", storedDate.toDateString());
+  // Debug logging
+  console.log(`Date check - Current: ${currentDateStr}, Stored: ${storedDateStrFormatted}`);
   
   // Check if the day has changed
-  if (pacificTime.toDateString() !== storedDate.toDateString()) {
+  if (storedDateStrFormatted && currentDateStr !== storedDateStrFormatted) {
     // Store new date
     localStorage.setItem('lastChallengeDate', pacificTime.toISOString());
     console.log("New day detected! Updated lastChallengeDate in localStorage");
     
-    // Force refresh the challenge - add this to guarantee the challenge is updated
+    // Force refresh the challenge
     if (typeof getDailyChallenge === 'function') {
       console.log("Forcing challenge refresh...");
       setTimeout(() => {
@@ -261,11 +258,16 @@ function checkForNewDay() {
             console.log(`Updated difficulty to ${challengeDifficulty.difficultyText} based on theoretical fewest moves: ${theoreticalDifficulty.theoreticalFewestMoves}`);
           }
           
-          // Reset game state with new challenge
-          currentWord = startWord;
-          wordChain = [startWord];
-          message = "New daily challenge loaded!";
-          gameWon = false;
+          // Only reset game state if it's actually a new day
+          // Don't reset if the user is in the middle of a game
+          if (wordChain.length === 1 && currentWord === startWord) {
+            currentWord = startWord;
+            wordChain = [startWord];
+            message = "New daily challenge loaded!";
+            gameWon = false;
+          } else {
+            message = "New daily challenge available! Press Ctrl+R to refresh.";
+          }
         }).catch(error => {
           console.error("Error refreshing challenge:", error);
         });
@@ -273,24 +275,6 @@ function checkForNewDay() {
     }
     
     return true;
-  }
-  
-  // More debugging for persistent issues
-  if (storedDate.toDateString() === pacificTime.toDateString() && 
-      typeof getDailyChallenge === 'function' && 
-      storedDate.getTime() < (now - 86400000)) { // If stored date is more than a day old
-    console.warn("Date hasn't changed according to comparison, but stored date is old!");
-    console.warn("This might indicate a problem with date string comparison or localStorage");
-    
-    // Try alternate check based on time difference
-    const dayDiff = Math.floor((now - storedDate.getTime()) / (1000 * 60 * 60 * 24));
-    console.log("Days since last challenge:", dayDiff);
-    
-    if (dayDiff >= 1) {
-      console.log("Forcing refresh based on day difference");
-      localStorage.setItem('lastChallengeDate', pacificTime.toISOString());
-      return true;
-    }
   }
   
   return false;
