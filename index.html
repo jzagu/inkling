@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Inkling</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Help overlay -->
+  <div id="help-overlay" class="overlay hidden" role="dialog" aria-modal="true" aria-label="How to play">
+    <div class="overlay-card">
+      <button class="close-btn" id="help-close" aria-label="Close help">×</button>
+      <h2>How to Play</h2>
+      <p>Connect the <strong>start word</strong> to the <strong>target word</strong> by changing <strong>1 or 2 letters</strong> at a time.</p>
+      <p>Each word you enter must be a valid English word.</p>
+
+      <div class="help-example">
+        <div class="example-label">Example</div>
+        <div class="example-chain">
+          <div class="example-row">
+            <span class="ex-letter">M</span><span class="ex-letter">O</span><span class="ex-letter">R</span><span class="ex-letter">N</span><span class="ex-letter">I</span><span class="ex-letter">N</span><span class="ex-letter">G</span>
+            <span class="ex-note">start</span>
+          </div>
+          <div class="example-arrow">↓ change R→A</div>
+          <div class="example-row">
+            <span class="ex-letter">M</span><span class="ex-letter">O</span><span class="ex-letter ex-changed">A</span><span class="ex-letter">N</span><span class="ex-letter">I</span><span class="ex-letter">N</span><span class="ex-letter">G</span>
+          </div>
+          <div class="example-arrow">↓ change O→E</div>
+          <div class="example-row">
+            <span class="ex-letter">M</span><span class="ex-letter ex-changed">E</span><span class="ex-letter">A</span><span class="ex-letter">N</span><span class="ex-letter">I</span><span class="ex-letter">N</span><span class="ex-letter">G</span>
+          </div>
+          <div class="example-arrow">↓ change M→L</div>
+          <div class="example-row">
+            <span class="ex-letter ex-changed">L</span><span class="ex-letter">E</span><span class="ex-letter">A</span><span class="ex-letter">N</span><span class="ex-letter">I</span><span class="ex-letter">N</span><span class="ex-letter">G</span>
+            <span class="ex-note">target reached!</span>
+          </div>
+        </div>
+      </div>
+
+      <ul class="help-rules">
+        <li>You may change <strong>1 or 2 letters</strong> per step.</li>
+        <li>Every word must be a valid Scrabble dictionary word.</li>
+        <li>You cannot reuse a word already in your chain.</li>
+        <li>You win when your word is <strong>1 or 2 letters away</strong> from the goal — you don't need to type it exactly.</li>
+        <li>Solve in the fewest moves to earn the <strong>⚡ Optimal</strong> badge.</li>
+        <li>Use <strong>Undo</strong> to remove your last word.</li>
+      </ul>
+
+      <p class="help-note">A new puzzle is available every day at midnight Pacific Time.</p>
+    </div>
+  </div>
+
+  <!-- Win overlay -->
+  <div id="win-overlay" class="overlay hidden" role="dialog" aria-modal="true" aria-label="Puzzle solved">
+    <div class="overlay-card win-card">
+      <h2 id="win-title">You solved it!</h2>
+      <div id="optimal-badge" class="optimal-badge hidden">⚡ Optimal Solution!</div>
+      <div id="win-stats"></div>
+      <div id="win-chain-display"></div>
+      <div class="win-actions">
+        <button id="share-btn" class="btn-primary">Copy Results</button>
+        <span id="share-confirm" class="share-confirm hidden">Copied!</span>
+      </div>
+      <p class="win-note">Come back tomorrow for a new puzzle.</p>
+    </div>
+  </div>
+
+  <!-- Main app -->
+  <div id="app">
+    <header>
+      <div class="header-left">
+        <h1>Inkling</h1>
+        <div id="puzzle-meta">
+          <span id="puzzle-date"></span>
+          <span id="difficulty-badge" class="diff-badge"></span>
+        </div>
+      </div>
+      <button id="help-btn" class="help-btn" aria-label="How to play">?</button>
+    </header>
+
+    <div id="route-display">
+      <div class="route-end" id="route-start-block">
+        <span class="route-label start-label">START</span>
+        <div id="start-word" class="route-letters"></div>
+      </div>
+      <div class="route-divider">
+        <span class="route-arrow-large">↓</span>
+      </div>
+      <div class="route-end" id="route-goal-block">
+        <span class="route-label goal-label">GOAL</span>
+        <div id="target-word" class="route-letters goal-letters"></div>
+      </div>
+    </div>
+
+    <div id="chain-display" aria-live="polite"></div>
+
+    <div id="message" role="alert" aria-live="assertive"></div>
+
+    <form id="input-form" autocomplete="off">
+      <div class="input-row">
+        <input
+          type="text"
+          id="word-input"
+          maxlength="7"
+          autocomplete="off"
+          autocorrect="off"
+          autocapitalize="characters"
+          spellcheck="false"
+          placeholder="Enter a word…"
+          aria-label="Enter your next word"
+        >
+      </div>
+      <div class="btn-row">
+        <button type="submit" id="submit-btn" class="btn-primary">Submit</button>
+        <button type="button" id="undo-btn" class="btn-secondary">Undo</button>
+      </div>
+    </form>
+  </div>
+
+  <script src="words.js"></script>
+  <script src="scrabble-words.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
