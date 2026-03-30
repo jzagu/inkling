@@ -5,6 +5,7 @@ let puzzle        = null;   // { start, end, minMoves, optimalPath }
 let chain         = [];     // words so far; chain[0] === puzzle.start
 let gameWon       = false;
 let autoCompleted = false;  // true when game ended by proximity (not exact match)
+let bestMoves     = null;   // best (lowest) player move count achieved today
 
 // ── Date helpers ───────────────────────────────────────────────────────────
 function getPacificDateString() {
@@ -59,6 +60,7 @@ function saveState() {
     chain:         chain,
     won:           gameWon,
     autoCompleted: autoCompleted,
+    bestMoves:     bestMoves,
   }));
 }
 
@@ -136,6 +138,18 @@ function renderHeader() {
   badge.className   = 'diff-badge diff-' + label.toLowerCase();
 }
 
+// ── Try again ──────────────────────────────────────────────────────────────
+function tryAgain() {
+  chain         = [puzzle.start];
+  gameWon       = false;
+  autoCompleted = false;
+  saveState();
+  document.getElementById('win-overlay').classList.add('hidden');
+  renderChain();
+  clearMessage();
+  document.getElementById('word-input').focus();
+}
+
 // ── Win overlay ────────────────────────────────────────────────────────────
 function showWinOverlay() {
   const moves     = getPlayerMoves();
@@ -143,9 +157,20 @@ function showWinOverlay() {
   const isOptimal = moves <= best;
   const diff      = getDifficultyLabel(puzzle.minMoves);
 
+  // Update best score for today
+  if (bestMoves === null || moves < bestMoves) {
+    bestMoves = moves;
+    saveState();
+  }
+
+  const bestLine = bestMoves !== null && bestMoves < moves
+    ? `<br><span class="best-score">Your best today: <strong>${bestMoves}</strong> move${bestMoves !== 1 ? 's' : ''}</span>`
+    : '';
+
   document.getElementById('win-stats').innerHTML =
     `<strong>${moves}</strong> move${moves !== 1 ? 's' : ''} &nbsp;·&nbsp; ${diff}` +
-    `<br>Best possible: <strong>${best}</strong> move${best !== 1 ? 's' : ''}`;
+    `<br>Best possible: <strong>${best}</strong> move${best !== 1 ? 's' : ''}` +
+    bestLine;
 
   document.getElementById('optimal-badge').classList.toggle('hidden', !isOptimal);
 
@@ -253,6 +278,7 @@ function init() {
     chain         = saved.chain;
     gameWon       = saved.won || false;
     autoCompleted = saved.autoCompleted || false;
+    bestMoves     = saved.bestMoves ?? null;
   } else {
     chain         = [puzzle.start];
     gameWon       = false;
@@ -305,6 +331,8 @@ document.addEventListener('DOMContentLoaded', () => {
       document.getElementById('word-input').focus();
     }
   });
+
+  document.getElementById('try-again-btn').addEventListener('click', tryAgain);
 
   document.getElementById('share-btn').addEventListener('click', () => {
     const text    = buildShareText();

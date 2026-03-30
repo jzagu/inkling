@@ -506,13 +506,16 @@ button {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 12px;
+  gap: 10px;
   flex-wrap: wrap;
 }
 
-.win-actions .btn-primary {
-  flex: 0 0 auto;
-  min-width: 140px;
+.win-actions .btn-primary  { flex: 1; min-width: 120px; }
+.win-actions .btn-secondary { flex: 1; min-width: 100px; }
+
+.best-score {
+  font-size: 0.82rem;
+  color: #51cf66;
 }
 
 .share-confirm {
