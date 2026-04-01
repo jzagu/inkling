@@ -530,6 +530,61 @@ button {
   margin-top: 16px;
 }
 
+/* ── Give up ──────────────────────────────────────────────────────────────── */
+.give-up-row {
+  margin-top: 6px;
+}
+
+.btn-give-up {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  cursor: pointer;
+  padding: 4px 8px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.btn-give-up:hover { color: var(--error); }
+
+.give-up-confirm {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  text-align: center;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
+.give-up-confirm p { margin-bottom: 12px; }
+
+.give-up-confirm-btns {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+
+.btn-danger {
+  background: var(--error);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius);
+  padding: 8px 18px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-danger:hover { opacity: 0.85; }
+
+.gave-up {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  text-align: center;
+}
+
 /* ── Utility ──────────────────────────────────────────────────────────────── */
 .hidden { display: none !important; }
 

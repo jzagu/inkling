@@ -117,7 +117,19 @@
         <button type="submit" id="submit-btn" class="btn-primary">Submit</button>
         <button type="button" id="undo-btn" class="btn-secondary">Undo</button>
       </div>
+      <div class="btn-row give-up-row">
+        <button type="button" id="give-up-btn" class="btn-give-up">Give Up</button>
+      </div>
     </form>
+
+    <!-- Give-up confirmation -->
+    <div id="give-up-confirm" class="give-up-confirm hidden">
+      <p>Are you sure? This will reveal today's solution.</p>
+      <div class="give-up-confirm-btns">
+        <button id="give-up-yes" class="btn-danger">Yes, show solution</button>
+        <button id="give-up-no" class="btn-secondary">Cancel</button>
+      </div>
+    </div>
   </div>
 
   <script src="words.js"></script>

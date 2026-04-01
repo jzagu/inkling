@@ -5,6 +5,7 @@ let puzzle        = null;   // { start, end, minMoves, optimalPath }
 let chain         = [];     // words so far; chain[0] === puzzle.start
 let gameWon       = false;
 let autoCompleted = false;  // true when game ended by proximity (not exact match)
+let gaveUp        = false;
 let bestMoves     = null;   // best (lowest) player move count achieved today
 
 // ── Date helpers ───────────────────────────────────────────────────────────
@@ -60,6 +61,7 @@ function saveState() {
     chain:         chain,
     won:           gameWon,
     autoCompleted: autoCompleted,
+    gaveUp:        gaveUp,
     bestMoves:     bestMoves,
   }));
 }
@@ -127,7 +129,8 @@ function renderChain() {
     }
     container.appendChild(makeWordRow(word, idx));
   });
-  document.getElementById('undo-btn').disabled = chain.length <= 1 || gameWon;
+  document.getElementById('undo-btn').disabled = chain.length <= 1 || gameWon || gaveUp;
+  document.getElementById('give-up-btn').classList.toggle('hidden', gameWon || gaveUp);
 }
 
 function renderHeader() {
@@ -138,8 +141,54 @@ function renderHeader() {
   badge.className   = 'diff-badge diff-' + label.toLowerCase();
 }
 
+// ── Give up ────────────────────────────────────────────────────────────────
+function showGiveUpSolution() {
+  // Hide input, show solution display
+  document.getElementById('input-form').classList.add('hidden');
+  document.getElementById('give-up-confirm').classList.add('hidden');
+
+  const path = puzzle.optimalPath;
+  const container = document.getElementById('chain-display');
+  container.innerHTML = '';
+
+  // Render a fake chain using optimalPath so diff highlights work
+  path.forEach((word, idx) => {
+    if (idx > 0) {
+      const arrow = document.createElement('div');
+      arrow.className   = 'chain-arrow';
+      arrow.textContent = '↓';
+      container.appendChild(arrow);
+    }
+    const row = document.createElement('div');
+    row.className = 'chain-row' + (idx === 0 ? ' is-start' : '');
+    const wordDiv = document.createElement('div');
+    wordDiv.className = 'chain-word';
+    const diffIdx = idx > 0 ? getDiff(path[idx - 1], word) : [];
+    for (let i = 0; i < word.length; i++) {
+      const span = document.createElement('span');
+      span.className = 'chain-letter' + (diffIdx.includes(i) ? ' changed' : '');
+      span.textContent = word[i];
+      wordDiv.appendChild(span);
+    }
+    row.appendChild(wordDiv);
+    container.appendChild(row);
+  });
+
+  showMessage(
+    `One optimal solution (${puzzle.minMoves} moves). Come back tomorrow for a new puzzle.`,
+    'gave-up'
+  );
+}
+
+function confirmGiveUp() {
+  gaveUp = true;
+  saveState();
+  showGiveUpSolution();
+}
+
 // ── Try again ──────────────────────────────────────────────────────────────
 function tryAgain() {
+  if (gaveUp) return;
   chain         = [puzzle.start];
   gameWon       = false;
   autoCompleted = false;
@@ -278,11 +327,13 @@ function init() {
     chain         = saved.chain;
     gameWon       = saved.won || false;
     autoCompleted = saved.autoCompleted || false;
+    gaveUp        = saved.gaveUp || false;
     bestMoves     = saved.bestMoves ?? null;
   } else {
     chain         = [puzzle.start];
     gameWon       = false;
     autoCompleted = false;
+    gaveUp        = false;
   }
 
   renderHeader();
@@ -292,6 +343,8 @@ function init() {
 
   if (gameWon) {
     setTimeout(showWinOverlay, 100);
+  } else if (gaveUp) {
+    showGiveUpSolution();
   } else {
     document.getElementById('word-input').focus();
   }
@@ -333,6 +386,18 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   document.getElementById('try-again-btn').addEventListener('click', tryAgain);
+
+  document.getElementById('give-up-btn').addEventListener('click', () => {
+    document.getElementById('give-up-confirm').classList.remove('hidden');
+    document.getElementById('give-up-btn').classList.add('hidden');
+  });
+
+  document.getElementById('give-up-yes').addEventListener('click', confirmGiveUp);
+
+  document.getElementById('give-up-no').addEventListener('click', () => {
+    document.getElementById('give-up-confirm').classList.add('hidden');
+    document.getElementById('give-up-btn').classList.remove('hidden');
+  });
 
   document.getElementById('share-btn').addEventListener('click', () => {
     const text    = buildShareText();
