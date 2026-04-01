@@ -219,15 +219,20 @@ const curatedSet = new Set(CURATED);
 
 const pairs = [];
 const usedPairs = new Set();
+const MAX_PER_START = 3; // max pairs where a given word is the start
 
 // Shuffle curated words for variety
 const shuffled = [...CURATED].sort(() => Math.random() - 0.5);
 
-for (let si = 0; si < shuffled.length && pairs.length < 1000; si++) {
+for (let si = 0; si < shuffled.length; si++) {
   const start = shuffled[si];
   const { dist, prev } = bfs(start, 7);
 
-  for (const end of shuffled) {
+  // Shuffle end candidates so we don't always pick the same endpoints
+  const endCandidates = [...shuffled].sort(() => Math.random() - 0.5);
+  let foundForThisStart = 0;
+
+  for (const end of endCandidates) {
     if (end === start) continue;
     if (!dist.has(end)) continue;
 
@@ -243,8 +248,9 @@ for (let si = 0; si < shuffled.length && pairs.length < 1000; si++) {
     usedPairs.add(key);
     usedPairs.add(`${end}|${start}`); // avoid reverse duplicates
     pairs.push({ start, end, minMoves, optimalPath });
+    foundForThisStart++;
 
-    if (pairs.length >= 1000) break;
+    if (foundForThisStart >= MAX_PER_START) break;
   }
 
   process.stdout.write(`\r  ${si + 1}/${shuffled.length} source words searched, ${pairs.length} pairs found...`);
