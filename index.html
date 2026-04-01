@@ -126,14 +126,14 @@
     <div id="give-up-confirm" class="give-up-confirm hidden">
       <p>Are you sure? This will reveal today's solution.</p>
       <div class="give-up-confirm-btns">
-        <button id="give-up-yes" class="btn-danger" onclick="confirmGiveUp()">Yes, show solution</button>
+        <button id="give-up-yes" class="btn-danger" onclick="gaveUp=true;saveState();showGiveUpSolution();">Yes, show solution</button>
         <button id="give-up-no" class="btn-secondary" onclick="document.getElementById('give-up-confirm').classList.add('hidden');document.getElementById('give-up-btn').classList.remove('hidden');">Cancel</button>
       </div>
     </div>
   </div>
 
-  <script src="words.js"></script>
-  <script src="scrabble-words.js"></script>
-  <script src="app.js"></script>
+  <script src="words.js?v=4"></script>
+  <script src="scrabble-words.js?v=4"></script>
+  <script src="app.js?v=4"></script>
 </body>
 </html>
