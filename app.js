@@ -172,6 +172,35 @@ function confirmGiveUp() {
   showGiveUpSolution();
 }
 
+// ── Win chain toggle ───────────────────────────────────────────────────────
+let showingCalculatedSolution = false;
+
+function renderWinChain(words) {
+  const winChain = document.getElementById('win-chain-display');
+  winChain.innerHTML = '';
+  words.forEach((word, idx) => {
+    if (idx > 0) {
+      const arrow = document.createElement('div');
+      arrow.className   = 'chain-arrow';
+      arrow.textContent = '↓';
+      winChain.appendChild(arrow);
+    }
+    winChain.appendChild(makeWordRow(word, idx > 0 ? words[idx - 1] : null));
+  });
+}
+
+function toggleWinChain() {
+  const btn = document.getElementById('toggle-solution-btn');
+  showingCalculatedSolution = !showingCalculatedSolution;
+  if (showingCalculatedSolution) {
+    renderWinChain(puzzle.optimalPath);
+    btn.textContent = 'Show my solution';
+  } else {
+    renderWinChain(chain);
+    btn.textContent = 'Show calculated solution';
+  }
+}
+
 // ── Try again ──────────────────────────────────────────────────────────────
 function tryAgain() {
   if (gaveUp) return;
@@ -221,17 +250,9 @@ function showWinOverlay() {
     badge.classList.add('hidden');
   }
 
-  const winChain = document.getElementById('win-chain-display');
-  winChain.innerHTML = '';
-  chain.forEach((word, idx) => {
-    if (idx > 0) {
-      const arrow = document.createElement('div');
-      arrow.className   = 'chain-arrow';
-      arrow.textContent = '↓';
-      winChain.appendChild(arrow);
-    }
-    winChain.appendChild(makeWordRow(word, idx > 0 ? chain[idx - 1] : null));
-  });
+  showingCalculatedSolution = false;
+  document.getElementById('toggle-solution-btn').textContent = 'Show calculated solution';
+  renderWinChain(chain);
 
   document.getElementById('win-overlay').classList.remove('hidden');
 }
