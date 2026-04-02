@@ -1,12 +1,12 @@
 // app.js — Inkling game logic
 
 // ── State ──────────────────────────────────────────────────────────────────
-let puzzle        = null;   // { start, end, minMoves, optimalPath }
+let puzzle        = null;   // { start, end, minSteps, optimalPath }
 let chain         = [];     // words so far; chain[0] === puzzle.start
 let gameWon       = false;
-let autoCompleted = false;  // true when game ended by proximity (not exact match)
+let autoCompleted = false;  // true when game ended by proximity (goal auto-appended)
 let gaveUp        = false;
-let bestMoves     = null;   // best (lowest) player move count achieved today
+let bestSteps     = null;   // best (lowest) step count achieved today
 
 // ── Date helpers ───────────────────────────────────────────────────────────
 function getPacificDateString() {
@@ -34,26 +34,27 @@ function getDiff(a, b) {
   return out;
 }
 
-// ── Move counting ──────────────────────────────────────────────────────────
-// The goal auto-appended by proximity win doesn't count as a player move.
-// Optimal is minMoves-1 because players can stop one step before exact match.
-function getPlayerMoves() {
-  return autoCompleted ? chain.length - 2 : chain.length - 1;
+// ── Step counting ──────────────────────────────────────────────────────────
+// Each transition between words = 1 step, including the auto-completed final step.
+// Par = puzzle.minSteps (BFS shortest path through top-10k frequency words).
+// Players using the full Scrabble dictionary may occasionally beat par.
+function getPlayerSteps() {
+  return chain.length - 1;
 }
-function getEffectiveBest() {
-  return Math.max(1, puzzle.minMoves - 1);
+function getPar() {
+  return puzzle.minSteps;
 }
 
 // ── Difficulty label ───────────────────────────────────────────────────────
-function getDifficultyLabel(minMoves) {
-  if (minMoves <= 3) return 'Easy';
-  if (minMoves <= 4) return 'Medium';
-  if (minMoves <= 5) return 'Hard';
+function getDifficultyLabel(minSteps) {
+  if (minSteps <= 3) return 'Easy';
+  if (minSteps <= 4) return 'Medium';
+  if (minSteps <= 5) return 'Hard';
   return 'Extreme';
 }
 
 // ── LocalStorage ───────────────────────────────────────────────────────────
-const STORAGE_KEY = 'inkling_v2';
+const STORAGE_KEY = 'inkling_v3';
 
 function saveState() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify({
@@ -62,7 +63,7 @@ function saveState() {
     won:           gameWon,
     autoCompleted: autoCompleted,
     gaveUp:        gaveUp,
-    bestMoves:     bestMoves,
+    bestSteps:     bestSteps,
   }));
 }
 
@@ -98,15 +99,14 @@ function renderRouteTiles(elId, word) {
   }
 }
 
-function makeWordRow(word, idx) {
+function makeWordRow(word, prevWord) {
   const row = document.createElement('div');
   row.className = 'chain-row';
-  if (idx === 0) row.classList.add('is-start');
 
   const wordDiv = document.createElement('div');
   wordDiv.className = 'chain-word';
 
-  const diffIdx = idx > 0 ? getDiff(chain[idx - 1], word) : [];
+  const diffIdx = prevWord ? getDiff(prevWord, word) : [];
   for (let i = 0; i < word.length; i++) {
     const span = document.createElement('span');
     span.className = 'chain-letter' + (diffIdx.includes(i) ? ' changed' : '');
@@ -127,7 +127,7 @@ function renderChain() {
       arrow.textContent = '↓';
       container.appendChild(arrow);
     }
-    container.appendChild(makeWordRow(word, idx));
+    container.appendChild(makeWordRow(word, idx > 0 ? chain[idx - 1] : null));
   });
   document.getElementById('undo-btn').disabled = chain.length <= 1 || gameWon || gaveUp;
   document.getElementById('give-up-btn').classList.toggle('hidden', gameWon || gaveUp);
@@ -136,14 +136,13 @@ function renderChain() {
 function renderHeader() {
   document.getElementById('puzzle-date').textContent = getPacificDateString();
   const badge = document.getElementById('difficulty-badge');
-  const label = getDifficultyLabel(puzzle.minMoves);
+  const label = getDifficultyLabel(puzzle.minSteps);
   badge.textContent = label;
   badge.className   = 'diff-badge diff-' + label.toLowerCase();
 }
 
 // ── Give up ────────────────────────────────────────────────────────────────
 function showGiveUpSolution() {
-  // Hide input, show solution display
   document.getElementById('input-form').classList.add('hidden');
   document.getElementById('give-up-confirm').classList.add('hidden');
 
@@ -151,7 +150,6 @@ function showGiveUpSolution() {
   const container = document.getElementById('chain-display');
   container.innerHTML = '';
 
-  // Render a fake chain using optimalPath so diff highlights work
   path.forEach((word, idx) => {
     if (idx > 0) {
       const arrow = document.createElement('div');
@@ -159,23 +157,11 @@ function showGiveUpSolution() {
       arrow.textContent = '↓';
       container.appendChild(arrow);
     }
-    const row = document.createElement('div');
-    row.className = 'chain-row' + (idx === 0 ? ' is-start' : '');
-    const wordDiv = document.createElement('div');
-    wordDiv.className = 'chain-word';
-    const diffIdx = idx > 0 ? getDiff(path[idx - 1], word) : [];
-    for (let i = 0; i < word.length; i++) {
-      const span = document.createElement('span');
-      span.className = 'chain-letter' + (diffIdx.includes(i) ? ' changed' : '');
-      span.textContent = word[i];
-      wordDiv.appendChild(span);
-    }
-    row.appendChild(wordDiv);
-    container.appendChild(row);
+    container.appendChild(makeWordRow(word, idx > 0 ? path[idx - 1] : null));
   });
 
   showMessage(
-    `One optimal solution (${puzzle.minMoves} moves). Come back tomorrow for a new puzzle.`,
+    `One calculated optimal solution (${puzzle.minSteps} steps). Come back tomorrow for a new puzzle.`,
     'gave-up'
   );
 }
@@ -201,27 +187,39 @@ function tryAgain() {
 
 // ── Win overlay ────────────────────────────────────────────────────────────
 function showWinOverlay() {
-  const moves     = getPlayerMoves();
-  const best      = getEffectiveBest();
-  const isOptimal = moves <= best;
-  const diff      = getDifficultyLabel(puzzle.minMoves);
+  const steps     = getPlayerSteps();
+  const par       = getPar();
+  const beatPar   = steps < par;
+  const atPar     = steps === par;
+  const diff      = getDifficultyLabel(puzzle.minSteps);
 
-  // Update best score for today
-  if (bestMoves === null || moves < bestMoves) {
-    bestMoves = moves;
+  // Update best steps for today
+  if (bestSteps === null || steps < bestSteps) {
+    bestSteps = steps;
     saveState();
   }
 
-  const bestLine = bestMoves !== null && bestMoves < moves
-    ? `<br><span class="best-score">Your best today: <strong>${bestMoves}</strong> move${bestMoves !== 1 ? 's' : ''}</span>`
+  const bestLine = bestSteps !== null && bestSteps < steps
+    ? `<br><span class="best-score">Your best today: <strong>${bestSteps}</strong> step${bestSteps !== 1 ? 's' : ''}</span>`
     : '';
 
   document.getElementById('win-stats').innerHTML =
-    `<strong>${moves}</strong> move${moves !== 1 ? 's' : ''} &nbsp;·&nbsp; ${diff}` +
-    `<br>Best possible: <strong>${best}</strong> move${best !== 1 ? 's' : ''}` +
+    `<strong>${steps}</strong> step${steps !== 1 ? 's' : ''} &nbsp;·&nbsp; ${diff}` +
+    `<br>Par: <strong>${par}</strong> step${par !== 1 ? 's' : ''}` +
     bestLine;
 
-  document.getElementById('optimal-badge').classList.toggle('hidden', !isOptimal);
+  const badge = document.getElementById('optimal-badge');
+  if (beatPar) {
+    badge.textContent = '🌟 Beats calculated par!';
+    badge.className   = 'optimal-badge beat-par';
+    badge.classList.remove('hidden');
+  } else if (atPar) {
+    badge.textContent = '⚡ Par!';
+    badge.className   = 'optimal-badge';
+    badge.classList.remove('hidden');
+  } else {
+    badge.classList.add('hidden');
+  }
 
   const winChain = document.getElementById('win-chain-display');
   winChain.innerHTML = '';
@@ -232,7 +230,7 @@ function showWinOverlay() {
       arrow.textContent = '↓';
       winChain.appendChild(arrow);
     }
-    winChain.appendChild(makeWordRow(word, idx));
+    winChain.appendChild(makeWordRow(word, idx > 0 ? chain[idx - 1] : null));
   });
 
   document.getElementById('win-overlay').classList.remove('hidden');
@@ -240,13 +238,19 @@ function showWinOverlay() {
 
 // ── Share text ─────────────────────────────────────────────────────────────
 function buildShareText() {
-  const moves     = getPlayerMoves();
-  const isOptimal = moves <= getEffectiveBest();
-  const diff      = getDifficultyLabel(puzzle.minMoves);
+  const steps   = getPlayerSteps();
+  const par     = getPar();
+  const beatPar = steps < par;
+  const atPar   = steps === par;
+  const diff    = getDifficultyLabel(puzzle.minSteps);
+
+  let badge = '';
+  if (beatPar) badge = ' 🌟 Beats par!';
+  else if (atPar) badge = ' ⚡ Par!';
 
   let text = `Inkling ${getPacificDateString()} (${diff})\n`;
   text += `${puzzle.start} → ${puzzle.end}\n`;
-  text += `${moves} move${moves !== 1 ? 's' : ''}${isOptimal ? ' ⚡ Optimal!' : ''}\n\n`;
+  text += `${steps} step${steps !== 1 ? 's' : ''}${badge}\n\n`;
 
   chain.forEach((word, idx) => {
     if (idx === 0) return;
@@ -294,7 +298,6 @@ function submitWord(raw) {
   // Win: submitted word is within 0-2 letters of goal
   const distToGoal = getDiff(word, puzzle.end).length;
   if (distToGoal <= 2) {
-    // If not exact match, auto-append the goal word so the chain reads complete
     if (distToGoal > 0) {
       chain.push(puzzle.end);
       autoCompleted = true;
@@ -328,7 +331,7 @@ function init() {
     gameWon       = saved.won || false;
     autoCompleted = saved.autoCompleted || false;
     gaveUp        = saved.gaveUp || false;
-    bestMoves     = saved.bestMoves ?? null;
+    bestSteps     = saved.bestSteps ?? null;
   } else {
     chain         = [puzzle.start];
     gameWon       = false;

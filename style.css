@@ -478,6 +478,12 @@ button {
   margin-bottom: 14px;
 }
 
+.optimal-badge.beat-par {
+  background: #002a1a;
+  border-color: var(--success);
+  color: var(--success);
+}
+
 #win-stats {
   color: var(--text-muted);
   font-size: 0.9rem;
