@@ -61,11 +61,38 @@
       <div id="win-chain-display"></div>
       <button id="toggle-solution-btn" class="btn-toggle-solution" onclick="toggleWinChain()">Show calculated solution</button>
       <div class="win-actions">
-        <button id="share-btn" class="btn-primary">Copy Results</button>
+        <button id="share-btn" class="btn-primary">Share Result</button>
         <button id="try-again-btn" class="btn-secondary" onclick="tryAgain()">Try Again</button>
       </div>
-      <span id="share-confirm" class="share-confirm hidden">Copied!</span>
       <p class="win-note">Come back tomorrow for a new puzzle.</p>
+    </div>
+  </div>
+
+  <!-- Share modal -->
+  <div id="share-overlay" class="overlay hidden" role="dialog" aria-modal="true" aria-label="Share your result">
+    <div class="overlay-card share-card">
+      <button class="close-btn" id="share-close" aria-label="Close share">×</button>
+      <h2>Share Your Result</h2>
+
+      <div id="share-preview" class="share-preview"></div>
+
+      <div class="share-actions">
+        <button id="share-copy-btn"   class="btn-share">📋 Copy Text</button>
+        <button id="share-image-btn"  class="btn-share">🖼 Save Image</button>
+        <button id="share-native-btn" class="btn-share hidden">📤 Share…</button>
+      </div>
+
+      <div class="share-socials" aria-label="Share on social media">
+        <a id="share-twitter"  class="btn-social btn-twitter"  target="_blank" rel="noopener noreferrer">Twitter / X</a>
+        <a id="share-facebook" class="btn-social btn-facebook" target="_blank" rel="noopener noreferrer">Facebook</a>
+        <a id="share-whatsapp" class="btn-social btn-whatsapp" target="_blank" rel="noopener noreferrer">WhatsApp</a>
+        <a id="share-reddit"   class="btn-social btn-reddit"   target="_blank" rel="noopener noreferrer">Reddit</a>
+        <a id="share-email"    class="btn-social btn-email">Email</a>
+      </div>
+
+      <p class="share-note">For Instagram, TikTok, Snapchat or Threads: tap <strong>Save Image</strong> and upload it from that app. On mobile, <strong>Share…</strong> hands off to the system share sheet (covers all installed apps).</p>
+
+      <span id="share-feedback" class="share-feedback hidden" aria-live="polite"></span>
     </div>
   </div>
 
@@ -118,6 +145,10 @@
         <button type="submit" id="submit-btn" class="btn-primary">Submit</button>
         <button type="button" id="undo-btn" class="btn-secondary">Undo</button>
       </div>
+      <div id="hint-message" class="hint-message hidden" aria-live="polite"></div>
+      <div class="btn-row hint-row">
+        <button type="button" id="hint-btn" class="btn-hint">Hint</button>
+      </div>
       <div class="btn-row give-up-row">
         <button type="button" id="give-up-btn" class="btn-give-up" onclick="document.getElementById('give-up-confirm').classList.remove('hidden');this.classList.add('hidden');">Give Up</button>
       </div>
@@ -133,8 +164,8 @@
     </div>
   </div>
 
-  <script src="words.js?v=7"></script>
-  <script src="scrabble-words.js?v=7"></script>
-  <script src="app.js?v=7"></script>
+  <script src="words.js?v=8"></script>
+  <script src="scrabble-words.js?v=8"></script>
+  <script src="app.js?v=8"></script>
 </body>
 </html>

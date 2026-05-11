@@ -541,17 +541,58 @@ button {
   color: #51cf66;
 }
 
-.share-confirm {
-  font-size: 0.85rem;
-  color: var(--success);
-  font-weight: 600;
-}
-
 .win-note {
   font-size: 0.8rem;
   color: var(--text-muted);
   margin-top: 16px;
 }
+
+/* ── Hint ─────────────────────────────────────────────────────────────────── */
+.hint-row {
+  margin-top: 4px;
+  justify-content: center;
+}
+
+.btn-hint {
+  background: transparent;
+  border: 1px solid var(--accent-dim);
+  color: var(--accent);
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 8px 16px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  min-height: 36px;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  width: 100%;
+}
+.btn-hint:hover    { background: var(--accent-dim); color: #fff; }
+.btn-hint:disabled { opacity: 0.5; cursor: progress; }
+
+.hint-message {
+  background: var(--surface2);
+  border: 1px solid var(--accent-dim);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  font-size: 0.9rem;
+  color: var(--text);
+  line-height: 1.4;
+}
+.hint-message.warn {
+  border-color: var(--changed);
+  border-left-color: var(--changed);
+  color: var(--text);
+}
+.hint-message strong {
+  font-family: "Courier New", Courier, monospace;
+  letter-spacing: 0.05em;
+  color: var(--accent);
+}
+.hint-message.warn strong { color: var(--changed); }
+
+.hint-stat       { font-size: 0.82rem; color: var(--accent); }
+.best-hint-free  { font-size: 0.82rem; color: #51cf66; }
 
 /* ── Give up ──────────────────────────────────────────────────────────────── */
 .give-up-row {
@@ -607,6 +648,149 @@ button {
   font-size: 0.85rem;
   text-align: center;
 }
+
+/* ── Share modal ──────────────────────────────────────────────────────────── */
+.share-card { text-align: center; }
+
+.share-card h2 {
+  font-size: 1.35rem;
+  margin-bottom: 14px;
+}
+
+.share-preview {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px 12px;
+  margin-bottom: 16px;
+}
+
+.share-preview-header {
+  font-size: 0.85rem;
+  color: var(--text);
+  line-height: 1.5;
+  white-space: pre-line;
+  margin-bottom: 12px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+.share-preview-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.share-preview-row {
+  display: flex;
+  gap: 4px;
+}
+
+.share-sq {
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  font-family: "Segoe UI Symbol", "Apple Symbols", "Arial Unicode MS", sans-serif;
+  line-height: 1;
+}
+
+.share-sq-yellow { background: var(--changed); }   /* #f5a623 */
+.share-sq-green  { background: var(--success); }   /* #51cf66 */
+
+/* Hollow star marks letters that match the goal position */
+.share-sq.at-goal::after {
+  content: '\2606';        /* ☆ — hollow star */
+  color: #1a1a2e;
+  font-size: 19px;
+  font-weight: 900;
+  line-height: 1;
+  text-shadow: 0 0 1px #1a1a2e; /* thicken the outline */
+}
+
+.share-preview-footer {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  letter-spacing: 0.02em;
+}
+
+.share-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.btn-share {
+  background: var(--surface2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.btn-share:hover { background: var(--border); border-color: var(--accent); }
+
+.share-socials {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.btn-social {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 9px 8px;
+  border-radius: var(--radius);
+  color: #fff;
+  cursor: pointer;
+  border: none;
+  transition: opacity 0.15s, transform 0.05s;
+}
+.btn-social:hover  { opacity: 0.88; }
+.btn-social:active { transform: scale(0.97); }
+
+.btn-twitter   { background: #1d1d1f; border: 1px solid #2e2e3a; }
+.btn-facebook  { background: #1877f2; }
+.btn-whatsapp  { background: #25d366; color: #042a14; }
+.btn-reddit    { background: #ff4500; }
+.btn-email     { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+
+.share-note {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+  text-align: left;
+  padding: 10px 12px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 10px;
+}
+.share-note strong { color: var(--text); }
+
+.share-feedback {
+  display: inline-block;
+  font-size: 0.85rem;
+  color: var(--success);
+  font-weight: 600;
+  min-height: 1.2em;
+}
+.share-feedback.is-error { color: var(--error); }
+.share-feedback.hidden   { display: none; }
 
 /* ── Utility ──────────────────────────────────────────────────────────────── */
 .hidden { display: none !important; }
