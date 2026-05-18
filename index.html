@@ -5,6 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Inkling</title>
   <link rel="stylesheet" href="style.css">
+  <!-- Kick off the Scrabble dictionary download in parallel with everything else.
+       It's lazy-injected by app.js once the UI is interactive. -->
+  <link rel="preload" href="scrabble-words.js?v=10" as="script">
 </head>
 <body>
 
@@ -46,6 +49,7 @@
         <li>You win when your word is <strong>1 or 2 letters away</strong> from the goal — you don't need to type it exactly.</li>
         <li>Reach the goal in <strong>par steps or fewer</strong> to earn a badge.</li>
         <li>Use <strong>Undo</strong> to remove your last word.</li>
+        <li>Stuck? <strong>Little Hint</strong> circles the letter(s) you should change in your last word. <strong>Big Hint</strong> reveals the suggested next word. Each Little counts as ½ a hint, each Big counts as 1.</li>
       </ul>
 
       <p class="help-note">A new puzzle is available every day at midnight Pacific Time.</p>
@@ -142,12 +146,13 @@
         >
       </div>
       <div class="btn-row">
-        <button type="submit" id="submit-btn" class="btn-primary">Submit</button>
+        <button type="submit" id="submit-btn" class="btn-primary" disabled>Loading word lists…</button>
         <button type="button" id="undo-btn" class="btn-secondary">Undo</button>
       </div>
       <div id="hint-message" class="hint-message hidden" aria-live="polite"></div>
       <div class="btn-row hint-row">
-        <button type="button" id="hint-btn" class="btn-hint">Hint</button>
+        <button type="button" id="hint-little-btn" class="btn-hint btn-hint-little">Little Hint</button>
+        <button type="button" id="hint-big-btn"    class="btn-hint btn-hint-big">Big Hint</button>
       </div>
       <div class="btn-row give-up-row">
         <button type="button" id="give-up-btn" class="btn-give-up" onclick="document.getElementById('give-up-confirm').classList.remove('hidden');this.classList.add('hidden');">Give Up</button>
@@ -164,8 +169,9 @@
     </div>
   </div>
 
-  <script src="words.js?v=8"></script>
-  <script src="scrabble-words.js?v=8"></script>
-  <script src="app.js?v=8"></script>
+  <!-- words.js + app.js download in parallel via `defer`; scrabble-words.js
+       is lazy-loaded from app.js so the UI is interactive faster. -->
+  <script src="words.js?v=10" defer></script>
+  <script src="app.js?v=10"   defer></script>
 </body>
 </html>

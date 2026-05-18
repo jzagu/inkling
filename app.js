@@ -6,9 +6,71 @@ let chain         = [];     // words so far; chain[0] === puzzle.start
 let gameWon       = false;
 let autoCompleted = false;  // true when game ended by proximity (goal auto-appended)
 let gaveUp        = false;
-let bestSteps     = null;   // best (lowest) step count achieved today
-let hintsUsed     = 0;      // hints requested this attempt (resets on Try Again)
-let bestHintFree  = null;   // best score achieved with 0 hints used
+let bestSteps        = null;   // best (lowest) step count achieved today
+let bigHintsUsed     = 0;      // "Big Hint" usages this attempt (reveals the word)
+let littleHintsUsed  = 0;      // "Little Hint" usages this attempt (circles letters)
+let bestHintFree     = null;   // best score achieved with 0 hints of either kind
+
+// Per-word "already-charged" flags. Reset whenever the chain changes
+// (submit, undo, tryAgain). They prevent double-charging a player who
+// re-clicks the same hint button (or a weaker one) on the same current word.
+//   - Big absorbs subsequent Big and subsequent Little
+//   - Little absorbs subsequent Little (but NOT a subsequent Big upgrade)
+let bigHintUsedThisWord    = false;
+let littleHintUsedThisWord = false;
+function resetHintFlagsForCurrentWord() {
+  bigHintUsedThisWord    = false;
+  littleHintUsedThisWord = false;
+}
+
+// ── Scrabble dictionary lazy-load ──────────────────────────────────────────
+// scrabble-words.js is ~235KB and is only needed to validate submissions.
+// We load it after the UI is painted so the player can see today's puzzle
+// (and even start composing a word) while the dictionary downloads.
+let scrabbleReady = false;
+const SCRABBLE_SRC = 'scrabble-words.js?v=10';
+
+function setSubmitLoading(loading, errorMsg) {
+  const submit = document.getElementById('submit-btn');
+  if (!submit) return;
+  if (loading) {
+    submit.disabled    = true;
+    submit.textContent = errorMsg || 'Loading word lists…';
+  } else {
+    submit.disabled    = false;
+    submit.textContent = 'Submit';
+  }
+}
+
+function loadScrabbleDict() {
+  return new Promise((resolve, reject) => {
+    if (typeof SCRABBLE_WORDS !== 'undefined') {
+      scrabbleReady = true;
+      resolve();
+      return;
+    }
+    const script = document.createElement('script');
+    script.src   = SCRABBLE_SRC;
+    script.async = true;
+    script.onload = () => {
+      if (typeof SCRABBLE_WORDS === 'undefined') {
+        reject(new Error('SCRABBLE_WORDS not defined after load'));
+        return;
+      }
+      scrabbleReady = true;
+      resolve();
+    };
+    script.onerror = () => reject(new Error('Failed to load ' + SCRABBLE_SRC));
+    document.head.appendChild(script);
+  });
+}
+
+// Total "hint weight" used. Big = 1, Little = 0.5.
+function getTotalHints() { return bigHintsUsed + 0.5 * littleHintsUsed; }
+function formatHintTotal() {
+  const t = getTotalHints();
+  return Number.isInteger(t) ? String(t) : t.toFixed(1);
+}
 
 // ── Date helpers ───────────────────────────────────────────────────────────
 function getPacificDateString() {
@@ -60,14 +122,17 @@ const STORAGE_KEY = 'inkling_v3';
 
 function saveState() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify({
-    date:          getPacificDateString(),
-    chain:         chain,
-    won:           gameWon,
-    autoCompleted: autoCompleted,
-    gaveUp:        gaveUp,
-    bestSteps:     bestSteps,
-    hintsUsed:     hintsUsed,
-    bestHintFree:  bestHintFree,
+    date:                   getPacificDateString(),
+    chain:                  chain,
+    won:                    gameWon,
+    autoCompleted:          autoCompleted,
+    gaveUp:                 gaveUp,
+    bestSteps:              bestSteps,
+    bigHintsUsed:           bigHintsUsed,
+    littleHintsUsed:        littleHintsUsed,
+    bestHintFree:           bestHintFree,
+    bigHintUsedThisWord:    bigHintUsedThisWord,
+    littleHintUsedThisWord: littleHintUsedThisWord,
   }));
 }
 
@@ -97,7 +162,25 @@ function showHintMessage(html, type) {
   el.innerHTML = html || '';
   el.className = 'hint-message' + (type ? ' ' + type : '') + (html ? '' : ' hidden');
 }
-function clearHintMessage() { showHintMessage(''); }
+function clearHintMessage() {
+  showHintMessage('');
+  clearLittleHintHighlight();
+}
+
+// Mark the letter positions in the last chain row with a glowing ring.
+function applyLittleHintHighlight(positions) {
+  clearLittleHintHighlight();
+  const rows = document.querySelectorAll('#chain-display .chain-row');
+  if (!rows.length) return;
+  const letters = rows[rows.length - 1].querySelectorAll('.chain-letter');
+  for (const idx of positions) {
+    if (letters[idx]) letters[idx].classList.add('hint-target');
+  }
+}
+function clearLittleHintHighlight() {
+  document.querySelectorAll('#chain-display .chain-letter.hint-target')
+    .forEach(l => l.classList.remove('hint-target'));
+}
 
 // ── Hint engine ────────────────────────────────────────────────────────────
 // We build a neighbor graph over WORD_POOL (3,000 curated, profanity-filtered
@@ -230,36 +313,62 @@ function findHint() {
   return null;
 }
 
-function requestHint() {
+// kind: 'big' shows the suggested word; 'little' circles the letters to change
+// in the player's most recent submission.
+function requestHint(kind) {
   if (gameWon || gaveUp) return;
-  // Already within 2 of goal → don't bother (button should be hidden anyway)
   const current = chain[chain.length - 1];
   if (getDiff(current, puzzle.end).length <= 2) {
     showHintMessage(`You're already 1 step from <strong>${puzzle.end}</strong> — just type it!`, 'info');
     return;
   }
 
-  const btn = document.getElementById('hint-btn');
-  btn.disabled = true;
+  const littleBtn = document.getElementById('hint-little-btn');
+  const bigBtn    = document.getElementById('hint-big-btn');
+  if (littleBtn) littleBtn.disabled = true;
+  if (bigBtn)    bigBtn.disabled    = true;
 
   const run = () => {
     const result = findHint();
-    btn.disabled = false;
-    updateHintButton();
+    if (littleBtn) littleBtn.disabled = false;
+    if (bigBtn)    bigBtn.disabled    = false;
+    updateHintButtons();
+
     if (!result) {
+      clearLittleHintHighlight();
       showHintMessage(
         'No hints available from here in the curated word pool. Try Undo or a different direction.',
         'warn'
       );
       return;
     }
-    hintsUsed++;
-    saveState();
-    showHintMessage(
-      `💡 Try: <strong>${result.hintWord}</strong> &nbsp;·&nbsp; ` +
-      `${result.stepsToGoal} word${result.stepsToGoal !== 1 ? 's' : ''} to goal`,
-      'info'
-    );
+
+    const stepsLine = `${result.stepsToGoal} word${result.stepsToGoal !== 1 ? 's' : ''} to goal`;
+
+    if (kind === 'big') {
+      // Big charges only the first time on this word. It absorbs any prior
+      // Little on the same word too (no extra charge then either).
+      if (!bigHintUsedThisWord) bigHintsUsed++;
+      bigHintUsedThisWord = true;
+      clearLittleHintHighlight();
+      saveState();
+      showHintMessage(
+        `💡 Try: <strong>${result.hintWord}</strong> &nbsp;·&nbsp; ${stepsLine}`,
+        'info'
+      );
+    } else {
+      // Little only charges if neither Big nor Little has fired yet on this word.
+      const positions = getDiff(current, result.hintWord);
+      if (!bigHintUsedThisWord && !littleHintUsedThisWord) littleHintsUsed++;
+      littleHintUsedThisWord = true;
+      applyLittleHintHighlight(positions);
+      saveState();
+      showHintMessage(
+        `💡 Try changing the highlighted letters in your current word to get closer &nbsp;-&nbsp; ${stepsLine}`,
+        'info'
+      );
+    }
+    updateHintButtons();
   };
 
   if (neighborGraphReady) {
@@ -270,23 +379,22 @@ function requestHint() {
   }
 }
 
-function updateHintButton() {
-  const btn = document.getElementById('hint-btn');
-  if (!btn) return;
-  // Hide entirely after give-up or after winning
-  if (gameWon || gaveUp) {
-    btn.classList.add('hidden');
+function updateHintButtons() {
+  const row    = document.querySelector('.hint-row');
+  const little = document.getElementById('hint-little-btn');
+  const big    = document.getElementById('hint-big-btn');
+  if (!row || !little || !big) return;
+
+  const current   = chain[chain.length - 1];
+  const shouldHide = gameWon || gaveUp || getDiff(current, puzzle.end).length <= 2;
+
+  if (shouldHide) {
+    row.classList.add('hidden');
     return;
   }
-  // Hide when the player is already within 2 of the goal (a hint would be silly)
-  const current = chain[chain.length - 1];
-  if (getDiff(current, puzzle.end).length <= 2) {
-    btn.classList.add('hidden');
-    return;
-  }
-  btn.classList.remove('hidden');
-  // Reflect usage count
-  btn.textContent = hintsUsed > 0 ? `Hint (${hintsUsed} used)` : 'Hint';
+  row.classList.remove('hidden');
+  little.textContent = littleHintsUsed > 0 ? `Little Hint (${littleHintsUsed})` : 'Little Hint';
+  big.textContent    = bigHintsUsed    > 0 ? `Big Hint (${bigHintsUsed})`     : 'Big Hint';
 }
 
 // ── Rendering ──────────────────────────────────────────────────────────────
@@ -333,7 +441,7 @@ function renderChain() {
   });
   document.getElementById('undo-btn').disabled = chain.length <= 1 || gameWon || gaveUp;
   document.getElementById('give-up-btn').classList.toggle('hidden', gameWon || gaveUp);
-  updateHintButton();
+  updateHintButtons();
 }
 
 function renderHeader() {
@@ -407,10 +515,12 @@ function toggleWinChain() {
 // ── Try again ──────────────────────────────────────────────────────────────
 function tryAgain() {
   if (gaveUp) return;
-  chain         = [puzzle.start];
-  gameWon       = false;
-  autoCompleted = false;
-  hintsUsed     = 0;
+  chain            = [puzzle.start];
+  gameWon          = false;
+  autoCompleted    = false;
+  bigHintsUsed     = 0;
+  littleHintsUsed  = 0;
+  resetHintFlagsForCurrentWord();
   saveState();
   document.getElementById('win-overlay').classList.add('hidden');
   renderChain();
@@ -431,8 +541,9 @@ function showWinOverlay() {
   if (bestSteps === null || steps < bestSteps) {
     bestSteps = steps;
   }
-  // Hint-free best is only updated when no hints were used this attempt
-  if (hintsUsed === 0 && (bestHintFree === null || steps < bestHintFree)) {
+  // Hint-free best is only updated when ZERO hints (either kind) were used
+  const hintFreeAttempt = bigHintsUsed === 0 && littleHintsUsed === 0;
+  if (hintFreeAttempt && (bestHintFree === null || steps < bestHintFree)) {
     bestHintFree = steps;
   }
   saveState();
@@ -441,8 +552,10 @@ function showWinOverlay() {
     ? `<br><span class="best-score">Your best today: <strong>${bestSteps}</strong> step${bestSteps !== 1 ? 's' : ''}</span>`
     : '';
 
-  const hintsLine = hintsUsed > 0
-    ? `<br><span class="hint-stat">Hints used: <strong>${hintsUsed}</strong></span>`
+  const anyHints = bigHintsUsed > 0 || littleHintsUsed > 0;
+  const hintsLine = anyHints
+    ? `<br><span class="hint-stat">Hints used: <strong>${formatHintTotal()}</strong>` +
+      ` <span class="hint-breakdown">(${bigHintsUsed} big · ${littleHintsUsed} little)</span></span>`
     : '';
 
   const hintFreeLine = (bestHintFree !== null && bestHintFree !== bestSteps)
@@ -531,6 +644,9 @@ function buildShareHeader() {
   let text = `Inkling ${getPacificDateString()} (${diff})\n`;
   text += `${puzzle.start} → ${puzzle.end}\n`;
   text += `${steps} step${steps !== 1 ? 's' : ''}${badge}`;
+  if (bigHintsUsed > 0 || littleHintsUsed > 0) {
+    text += `\nHints: ${formatHintTotal()} (${bigHintsUsed} big, ${littleHintsUsed} little)`;
+  }
   return text;
 }
 
@@ -581,13 +697,14 @@ function generateShareCanvas() {
   const canvas = document.createElement('canvas');
   const ctx    = canvas.getContext('2d');
 
-  const rows     = buildShareSquares();
-  const sq       = 56;
-  const gap      = 8;
-  const pad      = 36;
-  const headerH  = 130;
-  const footerH  = 44;
-  const cols     = 7;
+  const rows       = buildShareSquares();
+  const sq         = 56;
+  const gap        = 8;
+  const pad        = 36;
+  const anyHints   = bigHintsUsed > 0 || littleHintsUsed > 0;
+  const headerH    = anyHints ? 156 : 130;
+  const footerH    = 44;
+  const cols       = 7;
 
   const width  = pad * 2 + sq * cols + gap * (cols - 1);
   const height = pad + headerH + rows.length * (sq + gap) - gap + footerH + pad;
@@ -632,6 +749,16 @@ function generateShareCanvas() {
   ctx.fillStyle = beatPar ? '#51cf66' : (atPar ? '#f5a623' : '#888899');
   ctx.font      = 'bold 16px -apple-system, "Segoe UI", Roboto, sans-serif';
   ctx.fillText(statusLine, width / 2, pad + 106);
+
+  // Optional hints line
+  if (anyHints) {
+    ctx.fillStyle = '#888899';
+    ctx.font      = '14px -apple-system, "Segoe UI", Roboto, sans-serif';
+    ctx.fillText(
+      `Hints: ${formatHintTotal()}  (${bigHintsUsed} big · ${littleHintsUsed} little)`,
+      width / 2, pad + 132
+    );
+  }
 
   // Squares
   const gridTop = pad + headerH;
@@ -838,6 +965,7 @@ function submitWord(raw) {
   }
 
   chain.push(word);
+  resetHintFlagsForCurrentWord();
   renderChain();
   clearMessage();
   clearHintMessage();
@@ -862,6 +990,7 @@ function submitWord(raw) {
 function undo() {
   if (chain.length <= 1 || gameWon) return;
   chain.pop();
+  resetHintFlagsForCurrentWord();
   saveState();
   renderChain();
   clearMessage();
@@ -875,19 +1004,26 @@ function init() {
   const saved = loadState();
   if (saved && Array.isArray(saved.chain) && saved.chain.length >= 1
       && saved.chain[0] === puzzle.start) {
-    chain         = saved.chain;
-    gameWon       = saved.won || false;
-    autoCompleted = saved.autoCompleted || false;
-    gaveUp        = saved.gaveUp || false;
-    bestSteps     = saved.bestSteps ?? null;
-    hintsUsed     = saved.hintsUsed ?? 0;
-    bestHintFree  = saved.bestHintFree ?? null;
+    chain            = saved.chain;
+    gameWon          = saved.won || false;
+    autoCompleted    = saved.autoCompleted || false;
+    gaveUp           = saved.gaveUp || false;
+    bestSteps              = saved.bestSteps ?? null;
+    // Legacy `hintsUsed` (single-button era) maps to big hints
+    bigHintsUsed           = saved.bigHintsUsed ?? saved.hintsUsed ?? 0;
+    littleHintsUsed        = saved.littleHintsUsed ?? 0;
+    bestHintFree           = saved.bestHintFree ?? null;
+    bigHintUsedThisWord    = saved.bigHintUsedThisWord    ?? false;
+    littleHintUsedThisWord = saved.littleHintUsedThisWord ?? false;
   } else {
-    chain         = [puzzle.start];
-    gameWon       = false;
-    autoCompleted = false;
-    gaveUp        = false;
-    hintsUsed     = 0;
+    chain                  = [puzzle.start];
+    gameWon                = false;
+    autoCompleted          = false;
+    gaveUp                 = false;
+    bigHintsUsed           = 0;
+    littleHintsUsed        = 0;
+    bigHintUsedThisWord    = false;
+    littleHintUsedThisWord = false;
   }
 
   renderHeader();
@@ -900,6 +1036,22 @@ function init() {
   // words on idle callbacks).
   startNeighborGraphBuild();
 
+  // Lazy-load the Scrabble dictionary. Submit stays disabled until it's ready.
+  // The browser has already been prefetching it via the <link rel=preload>
+  // tag in the HTML head, so this is usually instant on warm caches.
+  loadScrabbleDict()
+    .then(() => {
+      setSubmitLoading(false);
+      // If the player isn't already in an overlay, re-focus the input now
+      // that submit is live — purely a UX nicety.
+      if (!gameWon && !gaveUp) document.getElementById('word-input').focus();
+    })
+    .catch(err => {
+      console.error(err);
+      setSubmitLoading(true, 'Dictionary failed — refresh');
+      showMessage('Could not load the word list. Please refresh the page.', 'error');
+    });
+
   if (gameWon) {
     setTimeout(showWinOverlay, 100);
   } else if (gaveUp) {
@@ -911,9 +1063,11 @@ function init() {
 
 // ── Event listeners ────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
-  if (typeof DAILY_PAIRS === 'undefined' || typeof SCRABBLE_WORDS === 'undefined') {
+  // DAILY_PAIRS comes from words.js (loaded via `defer`). SCRABBLE_WORDS is
+  // lazy-loaded inside init() — don't gate startup on it.
+  if (typeof DAILY_PAIRS === 'undefined') {
     document.getElementById('message').textContent =
-      'Error: word lists failed to load. Please refresh.';
+      'Error: puzzle data failed to load. Please refresh.';
     return;
   }
 
@@ -921,6 +1075,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.getElementById('input-form').addEventListener('submit', e => {
     e.preventDefault();
+    if (!scrabbleReady) {
+      showMessage('Word list still loading — one moment.', 'error');
+      return;
+    }
     const input = document.getElementById('word-input');
     submitWord(input.value);
     input.value = '';
@@ -946,7 +1104,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.getElementById('try-again-btn').addEventListener('click', tryAgain);
 
-  document.getElementById('hint-btn').addEventListener('click', requestHint);
+  document.getElementById('hint-little-btn').addEventListener('click', () => requestHint('little'));
+  document.getElementById('hint-big-btn').addEventListener('click', () => requestHint('big'));
 
   document.getElementById('give-up-btn').addEventListener('click', () => {
     document.getElementById('give-up-confirm').classList.remove('hidden');

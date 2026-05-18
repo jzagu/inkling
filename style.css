@@ -296,6 +296,12 @@ button {
 }
 .btn-primary:hover  { opacity: 0.88; }
 .btn-primary:active { opacity: 0.75; }
+.btn-primary:disabled {
+  background: var(--surface2);
+  color: var(--text-muted);
+  cursor: progress;
+  opacity: 1;
+}
 
 .btn-secondary {
   background: var(--surface2);
@@ -550,7 +556,6 @@ button {
 /* ── Hint ─────────────────────────────────────────────────────────────────── */
 .hint-row {
   margin-top: 4px;
-  justify-content: center;
 }
 
 .btn-hint {
@@ -559,12 +564,12 @@ button {
   color: var(--accent);
   font-size: 0.85rem;
   font-weight: 600;
-  padding: 8px 16px;
+  padding: 8px 12px;
   border-radius: var(--radius);
   cursor: pointer;
   min-height: 36px;
   transition: background 0.15s, color 0.15s, border-color 0.15s;
-  width: 100%;
+  flex: 1;
 }
 .btn-hint:hover    { background: var(--accent-dim); color: #fff; }
 .btn-hint:disabled { opacity: 0.5; cursor: progress; }
@@ -591,8 +596,36 @@ button {
 }
 .hint-message.warn strong { color: var(--changed); }
 
-.hint-stat       { font-size: 0.82rem; color: var(--accent); }
-.best-hint-free  { font-size: 0.82rem; color: #51cf66; }
+.hint-stat        { font-size: 0.82rem; color: var(--accent); }
+.hint-breakdown   { font-size: 0.78rem; color: var(--text-muted); font-weight: 400; }
+.best-hint-free   { font-size: 0.82rem; color: #51cf66; }
+
+/* Little Hint: glowing ring on the letters to change in the player's last word */
+.chain-letter.hint-target {
+  border-color: var(--accent);
+  box-shadow:
+    0 0 0 2px var(--accent),
+    0 0 14px rgba(108, 99, 255, 0.7),
+    0 0 28px rgba(108, 99, 255, 0.35);
+  animation: hint-target-pulse 1.6s ease-in-out infinite;
+  position: relative;
+  z-index: 1;
+}
+
+@keyframes hint-target-pulse {
+  0%, 100% {
+    box-shadow:
+      0 0 0 2px var(--accent),
+      0 0 14px rgba(108, 99, 255, 0.7),
+      0 0 28px rgba(108, 99, 255, 0.35);
+  }
+  50% {
+    box-shadow:
+      0 0 0 3px var(--accent),
+      0 0 22px rgba(108, 99, 255, 0.9),
+      0 0 40px rgba(108, 99, 255, 0.5);
+  }
+}
 
 /* ── Give up ──────────────────────────────────────────────────────────────── */
 .give-up-row {
